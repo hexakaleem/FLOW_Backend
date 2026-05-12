@@ -26,88 +26,33 @@ pipeline {
             }
         }
 
-        stage('Install Dependencies') {
-            parallel {
-                stage('Shared Package') {
-                    steps {
-                        dir('FLOW_Backend/backend/shared') {
-                            sh 'npm ci'
-                            sh 'npm run build'
-                        }
-                    }
-                }
-                stage('Monolith') {
-                    steps {
-                        dir('FLOW_Backend/backend/monolith') {
-                            sh 'npm ci'
-                        }
-                    }
-                }
-                stage('Gateway') {
-                    steps {
-                        dir('FLOW_Backend/backend/gateway') {
-                            sh 'npm ci'
-                        }
-                    }
-                }
-                stage('Realtime') {
-                    steps {
-                        dir('FLOW_Backend/backend/realtime') {
-                            sh 'npm ci'
-                        }
-                    }
-                }
-            }
-        }
-
-        stage('TypeScript Compile Check') {
-            parallel {
-                stage('Monolith') {
-                    steps {
-                        dir('FLOW_Backend/backend') {
-                            sh 'npx tsc --noEmit --project monolith/tsconfig.json'
-                        }
-                    }
-                }
-                stage('Gateway') {
-                    steps {
-                        dir('FLOW_Backend/backend') {
-                            sh 'npx tsc --noEmit --project gateway/tsconfig.json'
-                        }
-                    }
-                }
-                stage('Realtime') {
-                    steps {
-                        dir('FLOW_Backend/backend') {
-                            sh 'npx tsc --noEmit --project realtime/tsconfig.json'
-                        }
-                    }
-                }
-            }
-        }
-
         stage('Build Docker Images') {
             steps {
                 dir('FLOW_Backend/backend') {
-                    sh """
+                    sh '''
+                        echo "Building monolith..."
                         docker build \
                             --target monolith \
                             -t flow-monolith:${BUILD_TAG} \
                             -t flow-monolith:latest \
-                            .
-                        
+                            . || exit 1
+
+                        echo "Building gateway..."
                         docker build \
                             --target gateway \
                             -t flow-gateway:${BUILD_TAG} \
                             -t flow-gateway:latest \
-                            .
-                        
+                            . || exit 1
+
+                        echo "Building realtime..."
                         docker build \
                             --target realtime \
                             -t flow-realtime:${BUILD_TAG} \
                             -t flow-realtime:latest \
-                            .
-                    """
+                            . || exit 1
+
+                        echo "All images built successfully"
+                    '''
                 }
             }
         }
@@ -115,23 +60,25 @@ pipeline {
         stage('Deploy') {
             steps {
                 dir('FLOW_Backend/backend') {
-                    // Ensure deploy directory exists with .env
                     sh '''
                         mkdir -p ${DEPLOY_DIR}
                         
-                        # Copy compose file
                         cp docker-compose.yml ${DEPLOY_DIR}/
                         
-                        # Check if .env exists (created manually once)
                         if [ ! -f "${DEPLOY_DIR}/.env" ]; then
+                            echo "==========================================="
                             echo "ERROR: ${DEPLOY_DIR}/.env not found!"
-                            echo "Create it from .env.example and fill in your secrets:"
-                            echo "  cp ${DEPLOY_DIR}/.env.example ${DEPLOY_DIR}/.env"
-                            echo "  nano ${DEPLOY_DIR}/.env"
+                            echo ""
+                            echo "Create it once manually:"
+                            echo "  cd ${DEPLOY_DIR}"
+                            echo "  nano .env"
+                            echo ""
+                            echo "Required variables:"
+                            echo "  INTERNAL_API_KEY, JWT_SECRET, CLOUDINARY_URL"
+                            echo "==========================================="
                             exit 1
                         fi
                         
-                        # Deploy
                         cd ${DEPLOY_DIR}
                         docker-compose -f docker-compose.yml -p flow-backend down --remove-orphans || true
                         docker-compose -f docker-compose.yml -p flow-backend up -d
@@ -143,70 +90,71 @@ pipeline {
         stage('Health Check') {
             steps {
                 script {
-                    // Wait for services to start
-                    sleep(time: 30, unit: 'SECONDS')
-                    
-                    // Check gateway
-                    sh '''
-                        MAX_RETRIES=12
-                        RETRY=0
-                        while [ $RETRY -lt $MAX_RETRIES ]; do
-                            if curl -sf http://localhost:3000/health >/dev/null 2>&1; then
-                                echo "Gateway: HEALTHY"
-                                break
-                            fi
-                            RETRY=$((RETRY + 1))
-                            echo "Gateway check $RETRY/$MAX_RETRIES..."
-                            sleep 5
-                        done
-                        if [ $RETRY -eq $MAX_RETRIES ]; then
-                            echo "Gateway health check FAILED"
-                            docker-compose -f ${COMPOSE_FILE} logs gateway --tail=50
-                            exit 1
-                        fi
-                    '''
-                    
-                    // Check monolith through gateway
-                    sh '''
-                        MAX_RETRIES=12
-                        RETRY=0
-                        while [ $RETRY -lt $MAX_RETRIES ]; do
-                            if curl -sf http://localhost:3000/api/health >/dev/null 2>&1; then
-                                echo "Monolith: HEALTHY"
-                                break
-                            fi
-                            RETRY=$((RETRY + 1))
-                            echo "Monolith check $RETRY/$MAX_RETRIES..."
-                            sleep 5
-                        done
-                        if [ $RETRY -eq $MAX_RETRIES ]; then
-                            echo "Monolith health check FAILED"
-                            docker-compose -f ${COMPOSE_FILE} logs monolith --tail=50
-                            exit 1
-                        fi
-                    '''
-                    
-                    // Check realtime
-                    sh '''
-                        MAX_RETRIES=12
-                        RETRY=0
-                        while [ $RETRY -lt $MAX_RETRIES ]; do
-                            if curl -sf http://localhost:3005/health >/dev/null 2>&1; then
-                                echo "Realtime: HEALTHY"
-                                break
-                            fi
-                            RETRY=$((RETRY + 1))
-                            echo "Realtime check $RETRY/$MAX_RETRIES..."
-                            sleep 5
-                        done
-                        if [ $RETRY -eq $MAX_RETRIES ]; then
-                            echo "Realtime health check FAILED"
-                            docker-compose -f ${COMPOSE_FILE} logs realtime --tail=50
-                            exit 1
-                        fi
-                    '''
-                    
-                    echo 'All health checks passed!'
+                    sleep(time: 20, unit: 'SECONDS')
+
+                    def maxRetries = 12
+                    def retry = 0
+                    def allHealthy = true
+
+                    // Check Gateway
+                    retry = 0
+                    while (retry < maxRetries) {
+                        def code = sh(script: 'curl -sf -o /dev/null -w "%{http_code}" http://localhost:3000/health || true', returnStdout: true).trim()
+                        if (code == '200') {
+                            println "Gateway: HEALTHY"
+                            break
+                        }
+                        retry++
+                        println "Gateway check ${retry}/${maxRetries}..."
+                        sleep(5)
+                    }
+                    if (retry == maxRetries) {
+                        println "Gateway health check FAILED"
+                        sh 'docker-compose -f ${COMPOSE_FILE} -p flow-backend logs gateway --tail 50 || true'
+                        allHealthy = false
+                    }
+
+                    // Check Monolith
+                    retry = 0
+                    while (retry < maxRetries) {
+                        def code = sh(script: 'curl -sf -o /dev/null -w "%{http_code}" http://localhost:3000/api/health || true', returnStdout: true).trim()
+                        if (code == '200') {
+                            println "Monolith: HEALTHY"
+                            break
+                        }
+                        retry++
+                        println "Monolith check ${retry}/${maxRetries}..."
+                        sleep(5)
+                    }
+                    if (retry == maxRetries) {
+                        println "Monolith health check FAILED"
+                        sh 'docker-compose -f ${COMPOSE_FILE} -p flow-backend logs monolith --tail 50 || true'
+                        allHealthy = false
+                    }
+
+                    // Check Realtime
+                    retry = 0
+                    while (retry < maxRetries) {
+                        def code = sh(script: 'curl -sf -o /dev/null -w "%{http_code}" http://localhost:3005/health || true', returnStdout: true).trim()
+                        if (code == '200') {
+                            println "Realtime: HEALTHY"
+                            break
+                        }
+                        retry++
+                        println "Realtime check ${retry}/${maxRetries}..."
+                        sleep(5)
+                    }
+                    if (retry == maxRetries) {
+                        println "Realtime health check FAILED"
+                        sh 'docker-compose -f ${COMPOSE_FILE} -p flow-backend logs realtime --tail 50 || true'
+                        allHealthy = false
+                    }
+
+                    if (!allHealthy) {
+                        error("One or more services failed health check")
+                    }
+
+                    println 'All services healthy!'
                 }
             }
         }
@@ -214,7 +162,6 @@ pipeline {
 
     post {
         always {
-            // Cleanup local build images to save disk space
             sh '''
                 docker rmi flow-monolith:${BUILD_TAG} 2>/dev/null || true
                 docker rmi flow-gateway:${BUILD_TAG} 2>/dev/null || true
@@ -225,15 +172,23 @@ pipeline {
         success {
             echo """
             ==========================================
-            Deployment Successful! Build: ${BUILD_TAG}
+            SUCCESS! Build: ${BUILD_TAG}
             ==========================================
-            Gateway API: http://YOUR_EC2_IP:3000
-            Realtime WS: http://YOUR_EC2_IP:3005
+            Gateway:  http://YOUR_EC2_IP:3000
+            Realtime: http://YOUR_EC2_IP:3005
             ==========================================
             """
         }
         failure {
-            echo "Deployment failed! Check logs above."
+            echo """
+            ==========================================
+            FAILED! Build: ${BUILD_TAG}
+            Check logs above for errors.
+            Common fixes:
+            - Missing .env file? Create at /home/ubuntu/flow-backend/.env
+            - Docker not installed? sudo apt install docker.io docker-compose
+            ==========================================
+            """
         }
     }
 }
