@@ -28,7 +28,7 @@ pipeline {
 
         stage('Build Docker Images') {
             steps {
-                dir('FLOW_Backend/backend') {
+                dir('backend') {
                     sh '''
                         echo "Building monolith..."
                         docker build \
@@ -59,10 +59,10 @@ pipeline {
 
         stage('Deploy') {
             steps {
-                dir('FLOW_Backend/backend') {
+                dir('backend') {
                     sh '''
                         mkdir -p ${DEPLOY_DIR}
-                        
+
                         cp docker-compose.yml ${DEPLOY_DIR}/
                         
                         if [ ! -f "${DEPLOY_DIR}/.env" ]; then
