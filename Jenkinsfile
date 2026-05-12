@@ -91,8 +91,8 @@ pipeline {
                         fi
                     '''
 
-                    sh "${env.DOCKER_COMPOSE_CMD} -f docker compose.yml -p flow-backend down --remove-orphans || true"
-                    sh "${env.DOCKER_COMPOSE_CMD} --env-file ${ENV_FILE} -f docker compose.yml -p flow-backend up -d"
+                    sh "${env.DOCKER_COMPOSE_CMD} -f docker-compose.yml -p flow-backend down --remove-orphans || true"
+                    sh "${env.DOCKER_COMPOSE_CMD} --env-file ${ENV_FILE} -f docker-compose.yml -p flow-backend up -d"
                 }
             }
         }
@@ -113,7 +113,7 @@ pipeline {
                     if (retry == maxRetries) {
                         println "Gateway FAILED"
                         if (env.DOCKER_COMPOSE_CMD) {
-                            sh "${env.DOCKER_COMPOSE_CMD} -f docker compose.yml -p flow-backend logs gateway --tail 50 || true"
+                            sh "${env.DOCKER_COMPOSE_CMD} -f docker-compose.yml -p flow-backend logs gateway --tail 50 || true"
                         } else {
                             println "docker compose not available; cannot show gateway logs"
                         }
@@ -129,7 +129,7 @@ pipeline {
                     if (retry == maxRetries) {
                         println "Monolith FAILED"
                         if (env.DOCKER_COMPOSE_CMD) {
-                            sh "${env.DOCKER_COMPOSE_CMD} -f docker compose.yml -p flow-backend logs monolith --tail 50 || true"
+                            sh "${env.DOCKER_COMPOSE_CMD} -f docker-compose.yml -p flow-backend logs monolith --tail 50 || true"
                         } else {
                             println "docker compose not available; cannot show monolith logs"
                         }
@@ -145,7 +145,7 @@ pipeline {
                     if (retry == maxRetries) {
                         println "Realtime FAILED"
                         if (env.DOCKER_COMPOSE_CMD) {
-                            sh "${env.DOCKER_COMPOSE_CMD} -f docker compose.yml -p flow-backend logs realtime --tail 50 || true"
+                            sh "${env.DOCKER_COMPOSE_CMD} -f docker-compose.yml -p flow-backend logs realtime --tail 50 || true"
                         } else {
                             println "docker compose not available; cannot show realtime logs"
                         }
