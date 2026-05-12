@@ -28,38 +28,25 @@ pipeline {
 
         stage('Build Docker Images') {
             steps {
-                dir('backend') {
-                    sh '''
-                        echo "Building monolith..."
-                        docker build \
-                            --target monolith \
-                            -t flow-monolith:${BUILD_TAG} \
-                            -t flow-monolith:latest \
-                            . || exit 1
+                dir('FLOW_Backend/backend') {
+                    sh 'echo "WORKSPACE=$WORKSPACE"; ls -la "$WORKSPACE" || true'
+                    sh 'echo "Building monolith..."'
+                    sh "docker build -f ${env.WORKSPACE}/backend/Dockerfile --target monolith -t flow-monolith:${env.BUILD_TAG} -t flow-monolith:latest ${env.WORKSPACE}/backend || exit 1"
 
-                        echo "Building gateway..."
-                        docker build \
-                            --target gateway \
-                            -t flow-gateway:${BUILD_TAG} \
-                            -t flow-gateway:latest \
-                            . || exit 1
+                    sh 'echo "Building gateway..."'
+                    sh "docker build -f ${env.WORKSPACE}/backend/Dockerfile --target gateway -t flow-gateway:${env.BUILD_TAG} -t flow-gateway:latest ${env.WORKSPACE}/backend || exit 1"
 
-                        echo "Building realtime..."
-                        docker build \
-                            --target realtime \
-                            -t flow-realtime:${BUILD_TAG} \
-                            -t flow-realtime:latest \
-                            . || exit 1
+                    sh 'echo "Building realtime..."'
+                    sh "docker build -f ${env.WORKSPACE}/backend/Dockerfile --target realtime -t flow-realtime:${env.BUILD_TAG} -t flow-realtime:latest ${env.WORKSPACE}/backend || exit 1"
 
-                        echo "All images built successfully"
-                    '''
+                    sh 'echo "All images built successfully"'
                 }
             }
         }
 
         stage('Deploy') {
             steps {
-                dir('backend') {
+                dir('FLOW_Backend/backend') {
                     sh '''
                         mkdir -p ${DEPLOY_DIR}
 
