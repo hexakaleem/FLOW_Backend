@@ -1,0 +1,70 @@
+# Dependencies
+node_modules/
+*/node_modules/
+
+# Build outputs
+dist/
+*/dist/
+build/
+*/build/
+
+# Environment files (secrets) — NEVER commit these
+.env
+.env.local
+.env.*.local
+monolith/.env
+gateway/.env
+realtime/.env
+
+# BUT keep example files
+!.env.example
+!monolith/.env.example
+!gateway/.env.example
+!realtime/.env.example
+
+# Logs
+*.log
+logs/
+log/
+
+# OS files
+.DS_Store
+__MACOSX/
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Misc
+.git/
+*.pem
+*.key
+*.cert
+
+# Docker
+.dockerignore
+
+# Compiled TypeScript
+*.tsbuildinfo
+
+# Archives
+*.zip
+*.tar.gz
+*.rar
+
+# Local databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Uploads/temp
+temp/
+tmp/
+uploads/

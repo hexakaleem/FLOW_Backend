@@ -1,0 +1,117 @@
+# FLOW Backend - Docker Compose
+# ==========================================
+# Environment variables come from the .env file in this directory
+# The .env file is NOT in git - create it manually on the server
+#
+# SERVICE           PORT        PUBLIC?     ENV VARS NEEDED
+# MongoDB           27017       No          None
+# Redis             6379        No          None
+# Monolith          4000        No          INTERNAL_API_KEY, JWT_SECRET, MONGO_URI, REDIS_URL,
+#                                           CLOUDINARY_URL, FMCSA_API_KEY, CORS_ORIGINS
+# Gateway           3000        Yes         INTERNAL_API_KEY, CORS_ORIGINS
+# Realtime          3005        Yes         JWT_SECRET, CORS_ORIGINS, REDIS_URL
+
+services:
+  mongodb:
+    image: mongo:7
+    container_name: flow-mongodb
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    environment:
+      MONGO_INITDB_DATABASE: flow
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  redis:
+    image: redis:7-alpine
+    container_name: flow-redis
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  monolith:
+    image: flow-monolith:latest
+    container_name: flow-monolith
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:4000:4000"
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      # Docker-internal networking URLs (not secrets)
+      MONGO_URI: mongodb://mongodb:27017
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  gateway:
+    image: flow-gateway:latest
+    container_name: flow-gateway
+    restart: unless-stopped
+    ports:
+      - "0.0.0.0:3000:3000"
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      # Docker-internal URL to monolith (not a secret)
+      MONOLITH_URL: http://monolith:4000/api
+    depends_on:
+      monolith:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  realtime:
+    image: flow-realtime:latest
+    container_name: flow-realtime
+    restart: unless-stopped
+    ports:
+      - "0.0.0.0:3005:3005"
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      REALTIME_PORT: 3005
+      # Docker-internal URL to redis (not a secret)
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3005/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  mongo_data:
