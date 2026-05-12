@@ -34,6 +34,16 @@ export const config = {
     url: process.env.CLOUDINARY_URL || '',
   },
 
+  smtp: {
+    host: process.env.SMTP_HOST || 'smtp.mailtrap.io',
+    port: parseInt(process.env.SMTP_PORT || '2525', 10),
+    secure: process.env.SMTP_SECURE === 'true',
+    user: process.env.SMTP_USER || '',
+    pass: process.env.SMTP_PASS || '',
+    fromEmail: process.env.SMTP_FROM_EMAIL || 'noreply@flow-logistics.com',
+    fromName: process.env.SMTP_FROM_NAME || 'FLOW Logistics',
+  },
+
   get isDevelopment(): boolean {
     return this.nodeEnv === 'development';
   },

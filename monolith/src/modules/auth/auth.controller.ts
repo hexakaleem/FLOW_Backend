@@ -87,6 +87,26 @@ export class AuthController {
     }
   }
 
+  static async sendVerificationOTP(req: Request, res: Response, next: NextFunction) {
+    try {
+      const result = await AuthService.sendVerificationOTP(req.body.email);
+      const body: ApiResponse = { success: true, data: result };
+      res.status(200).json(body);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async verifyOTP(req: Request, res: Response, next: NextFunction) {
+    try {
+      const result = await AuthService.verifyOTP(req.body.email, req.body.code);
+      const body: ApiResponse = { success: true, data: result };
+      res.status(200).json(body);
+    } catch (err) {
+      next(err);
+    }
+  }
+
   static async verifyEmail(req: Request, res: Response, next: NextFunction) {
     try {
       const result = await AuthService.verifyEmail(req.body.token);

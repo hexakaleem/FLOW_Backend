@@ -129,9 +129,9 @@ export class TeamService {
     });
 
     const org = await OrganizationModel.findById(orgId);
-    sendEmail('team_invite', email, {
+    await sendEmail('team_invite', email, {
       orgName: org?.name ?? 'Organization',
-      token,
+      inviteUrl: `${process.env.FRONTEND_URL || 'http://localhost:3001'}/join?token=${token}`,
     });
 
     return invite;

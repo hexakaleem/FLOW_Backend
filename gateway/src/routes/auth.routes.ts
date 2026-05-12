@@ -10,6 +10,8 @@ router.post('/login', strictAuthLimiter, forwardToMonolith);
 router.post('/refresh', forwardToMonolith);
 router.post('/forgot-password', otpLimiter, forwardToMonolith);
 router.post('/reset-password', otpLimiter, forwardToMonolith);
+router.post('/send-verification-otp', otpLimiter, forwardToMonolith);
+router.post('/verify-otp', forwardToMonolith);
 router.post('/change-password', authenticate, forwardToMonolith);
 router.post('/verify-email', forwardToMonolith);
 router.post('/logout', authenticate, forwardToMonolith);

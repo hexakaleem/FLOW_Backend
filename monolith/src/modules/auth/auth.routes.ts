@@ -24,6 +24,8 @@ authRoutes.post('/login', AuthController.login);
 authRoutes.post('/refresh', AuthController.refresh);
 authRoutes.post('/forgot-password', AuthController.forgotPassword);
 authRoutes.post('/reset-password', AuthController.resetPassword);
+authRoutes.post('/send-verification-otp', AuthController.sendVerificationOTP);
+authRoutes.post('/verify-otp', AuthController.verifyOTP);
 authRoutes.post('/verify-email', AuthController.verifyEmail);
 authRoutes.post('/introspect', AuthController.introspect);
 

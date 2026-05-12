@@ -84,8 +84,8 @@ export class CounterOfferService {
       expiresAt,
     });
 
-    setImmediate(() => {
-      sendEmail('booking_notification', '', {
+    setImmediate(async () => {
+      await sendEmail('booking_notification', '', {
         loadId,
         counterOfferId: counterOffer._id.toString(),
         proposedRate: dto.proposedRate,

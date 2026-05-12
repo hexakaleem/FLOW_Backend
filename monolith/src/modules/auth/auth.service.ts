@@ -51,10 +51,18 @@ export class AuthService {
       status: 'pending_onboarding',
     });
 
-    sendEmail('welcome', user.email, {
+    await sendEmail('welcome', user.email, {
       firstName: user.firstName,
       verifyToken: emailVerifyToken,
     });
+
+    // Automatically send OTP for email verification
+    try {
+      await AuthService.sendVerificationOTP(user.email);
+    } catch (e: any) {
+      console.error('Failed to send verification OTP during registration:', e?.message || e);
+      // Non-blocking: user can resend OTP later
+    }
 
     return { userId: user._id.toString(), email: user.email, role: user.role };
   }
@@ -228,7 +236,7 @@ export class AuthService {
     const { code, hash } = PasswordService.generateOTP();
     const otpHash = await hash;
     otpCache.set(`reset:${user._id}`, otpHash, 600);
-    sendEmail('password_reset', user.email, { otp: code });
+    await sendEmail('password_reset', user.email, { otp: code });
   }
 
   static async resetPassword(dto: ResetPasswordDTO) {
@@ -260,6 +268,58 @@ export class AuthService {
     );
 
     otpCache.delete(`reset:${user._id}`);
+  }
+
+  static async sendVerificationOTP(emailInput: string) {
+    const email = sanitizeEmail(emailInput);
+    const user = await UserModel.findOne({ email });
+    if (!user) {
+      throw new AppError(404, 'USER_NOT_FOUND', 'User not found');
+    }
+    if (user.emailVerified) {
+      throw new AppError(400, 'ALREADY_VERIFIED', 'Email is already verified');
+    }
+
+    const { code, hash } = PasswordService.generateOTP();
+    const otpHash = await hash;
+    otpCache.set(`verify:${email}`, otpHash, 600); // 10 minutes
+
+    await sendEmail('email_verification', user.email, {
+      firstName: user.firstName,
+      otp: code,
+    });
+
+    return { message: 'Verification code sent' };
+  }
+
+  static async verifyOTP(emailInput: string, code: string) {
+    const email = sanitizeEmail(emailInput);
+    const user = await UserModel.findOne({ email });
+    if (!user) {
+      throw new AppError(404, 'USER_NOT_FOUND', 'User not found');
+    }
+    if (user.emailVerified) {
+      throw new AppError(400, 'ALREADY_VERIFIED', 'Email is already verified');
+    }
+
+    const storedOtpHash = otpCache.get<string>(`verify:${email}`);
+    if (!storedOtpHash) {
+      throw new AppError(400, 'OTP_EXPIRED', 'OTP has expired or was not requested');
+    }
+
+    const otpIsValid = await PasswordService.validateOTP(code, storedOtpHash);
+    if (!otpIsValid) {
+      throw new AppError(400, 'INVALID_OTP', 'The OTP is incorrect');
+    }
+
+    user.emailVerified = true;
+    user.emailVerifyToken = null;
+    user.emailVerifyTokenExpiresAt = null;
+    await user.save();
+
+    otpCache.delete(`verify:${email}`);
+
+    return { userId: user._id.toString(), email: user.email };
   }
 
   static async verifyEmail(token: string) {
