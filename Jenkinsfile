@@ -79,20 +79,19 @@ pipeline {
         stage('Deploy') {
             steps {
                 script {
-                    if (!env.DOCKER_COMPOSE_CMD) {
-                        error("docker compose not found on agent; please install docker compose or docker compose plugin")
-                    }
-
                     sh '''
                         if [ ! -f "${ENV_FILE}" ]; then
                             echo "ERROR: ${ENV_FILE} not found!"
                             echo "Create it: sudo mkdir -p /home/ubuntu/flow-backend && sudo nano /home/ubuntu/flow-backend/.env"
                             exit 1
                         fi
-                    '''
 
-                    sh "${env.DOCKER_COMPOSE_CMD} -f docker-compose.yml -p flow-backend down --remove-orphans || true"
-                    sh "${env.DOCKER_COMPOSE_CMD} --env-file ${ENV_FILE} -f docker-compose.yml -p flow-backend up -d"
+                        cp ${ENV_FILE} .env
+                        chmod 600 .env
+
+                        docker compose -f docker-compose.yml -p flow-backend down --remove-orphans || true
+                        docker compose -f docker-compose.yml -p flow-backend up -d
+                    '''
                 }
             }
         }
@@ -112,11 +111,7 @@ pipeline {
                     }
                     if (retry == maxRetries) {
                         println "Gateway FAILED"
-                        if (env.DOCKER_COMPOSE_CMD) {
-                            sh "${env.DOCKER_COMPOSE_CMD} -f docker-compose.yml -p flow-backend logs gateway --tail 50 || true"
-                        } else {
-                            println "docker compose not available; cannot show gateway logs"
-                        }
+                        sh 'docker compose -f docker-compose.yml -p flow-backend logs gateway --tail 50 || true'
                         allHealthy = false
                     }
 
@@ -128,11 +123,7 @@ pipeline {
                     }
                     if (retry == maxRetries) {
                         println "Monolith FAILED"
-                        if (env.DOCKER_COMPOSE_CMD) {
-                            sh "${env.DOCKER_COMPOSE_CMD} -f docker-compose.yml -p flow-backend logs monolith --tail 50 || true"
-                        } else {
-                            println "docker compose not available; cannot show monolith logs"
-                        }
+                        sh 'docker compose -f docker-compose.yml -p flow-backend logs monolith --tail 50 || true'
                         allHealthy = false
                     }
 
@@ -144,11 +135,7 @@ pipeline {
                     }
                     if (retry == maxRetries) {
                         println "Realtime FAILED"
-                        if (env.DOCKER_COMPOSE_CMD) {
-                            sh "${env.DOCKER_COMPOSE_CMD} -f docker-compose.yml -p flow-backend logs realtime --tail 50 || true"
-                        } else {
-                            println "docker compose not available; cannot show realtime logs"
-                        }
+                        sh 'docker compose -f docker-compose.yml -p flow-backend logs realtime --tail 50 || true'
                         allHealthy = false
                     }
 
