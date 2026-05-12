@@ -117,7 +117,7 @@ pipeline {
 
                     retry = 0
                     while (retry < maxRetries) {
-                        def code = sh(script: 'curl -sf -o /dev/null -w "%{http_code}" http://localhost:3000/api/health || true', returnStdout: true).trim()
+                        def code = sh(script: 'curl -sf -o /dev/null -w "%{http_code}" http://localhost:4000/health || true', returnStdout: true).trim()
                         if (code == '200') { println "Monolith: HEALTHY"; break }
                         retry++; println "Monolith check ${retry}/${maxRetries}..."; sleep(5)
                     }
