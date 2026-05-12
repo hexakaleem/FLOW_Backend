@@ -2,7 +2,7 @@ import { Queue, Worker } from 'bullmq';
 import { redis, redisPub } from '../lib/redis';
 import type { LoadPostedEvent, DomainEvent } from '../events/events.types';
 
-const MATCHING_QUEUE_NAME = 'flow:matching';
+const MATCHING_QUEUE_NAME = 'flow-matching';
 
 export const matchingQueue = new Queue(MATCHING_QUEUE_NAME, {
   connection: redis,

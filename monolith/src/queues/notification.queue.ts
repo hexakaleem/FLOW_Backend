@@ -2,7 +2,7 @@ import { Queue, Worker } from 'bullmq';
 import { redis, redisPub } from '../lib/redis';
 import { NotificationService } from '../modules/notifications/notification.service';
 
-const NOTIFICATION_QUEUE_NAME = 'flow:notifications';
+const NOTIFICATION_QUEUE_NAME = 'flow-notifications';
 
 export const notificationQueue = new Queue(NOTIFICATION_QUEUE_NAME, {
   connection: redis,
