@@ -28,49 +28,66 @@ pipeline {
 
         stage('Build Docker Images') {
             steps {
-                dir('FLOW_Backend/backend') {
-                    sh 'echo "WORKSPACE=$WORKSPACE"; ls -la "$WORKSPACE" || true'
-                    sh 'echo "Building monolith..."'
-                    sh "docker build -f ${env.WORKSPACE}/backend/Dockerfile --target monolith -t flow-monolith:${env.BUILD_TAG} -t flow-monolith:latest ${env.WORKSPACE}/backend || exit 1"
+                sh '''
+                    echo "WORKSPACE=${WORKSPACE}"
+                    echo "Files in workspace:"
+                    ls -la
 
-                    sh 'echo "Building gateway..."'
-                    sh "docker build -f ${env.WORKSPACE}/backend/Dockerfile --target gateway -t flow-gateway:${env.BUILD_TAG} -t flow-gateway:latest ${env.WORKSPACE}/backend || exit 1"
+                    echo ""
+                    echo "Building monolith..."
+                    docker build \
+                        --target monolith \
+                        -t flow-monolith:${BUILD_TAG} \
+                        -t flow-monolith:latest \
+                        . || exit 1
 
-                    sh 'echo "Building realtime..."'
-                    sh "docker build -f ${env.WORKSPACE}/backend/Dockerfile --target realtime -t flow-realtime:${env.BUILD_TAG} -t flow-realtime:latest ${env.WORKSPACE}/backend || exit 1"
+                    echo ""
+                    echo "Building gateway..."
+                    docker build \
+                        --target gateway \
+                        -t flow-gateway:${BUILD_TAG} \
+                        -t flow-gateway:latest \
+                        . || exit 1
 
-                    sh 'echo "All images built successfully"'
-                }
+                    echo ""
+                    echo "Building realtime..."
+                    docker build \
+                        --target realtime \
+                        -t flow-realtime:${BUILD_TAG} \
+                        -t flow-realtime:latest \
+                        . || exit 1
+
+                    echo ""
+                    echo "All images built successfully"
+                '''
             }
         }
 
         stage('Deploy') {
             steps {
-                dir('FLOW_Backend/backend') {
-                    sh '''
-                        mkdir -p ${DEPLOY_DIR}
+                sh '''
+                    mkdir -p ${DEPLOY_DIR}
 
-                        cp docker-compose.yml ${DEPLOY_DIR}/
-                        
-                        if [ ! -f "${DEPLOY_DIR}/.env" ]; then
-                            echo "==========================================="
-                            echo "ERROR: ${DEPLOY_DIR}/.env not found!"
-                            echo ""
-                            echo "Create it once manually:"
-                            echo "  cd ${DEPLOY_DIR}"
-                            echo "  nano .env"
-                            echo ""
-                            echo "Required variables:"
-                            echo "  INTERNAL_API_KEY, JWT_SECRET, CLOUDINARY_URL"
-                            echo "==========================================="
-                            exit 1
-                        fi
-                        
-                        cd ${DEPLOY_DIR}
-                        docker-compose -f docker-compose.yml -p flow-backend down --remove-orphans || true
-                        docker-compose -f docker-compose.yml -p flow-backend up -d
-                    '''
-                }
+                    cp docker-compose.yml ${DEPLOY_DIR}/
+
+                    if [ ! -f "${DEPLOY_DIR}/.env" ]; then
+                        echo "==========================================="
+                        echo "ERROR: ${DEPLOY_DIR}/.env not found!"
+                        echo ""
+                        echo "Create it once manually:"
+                        echo "  cd ${DEPLOY_DIR}"
+                        echo "  nano .env"
+                        echo ""
+                        echo "Required variables:"
+                        echo "  INTERNAL_API_KEY, JWT_SECRET, CLOUDINARY_URL"
+                        echo "==========================================="
+                        exit 1
+                    fi
+
+                    cd ${DEPLOY_DIR}
+                    docker-compose -f docker-compose.yml -p flow-backend down --remove-orphans || true
+                    docker-compose -f docker-compose.yml -p flow-backend up -d
+                '''
             }
         }
 
@@ -83,7 +100,6 @@ pipeline {
                     def retry = 0
                     def allHealthy = true
 
-                    // Check Gateway
                     retry = 0
                     while (retry < maxRetries) {
                         def code = sh(script: 'curl -sf -o /dev/null -w "%{http_code}" http://localhost:3000/health || true', returnStdout: true).trim()
@@ -101,7 +117,6 @@ pipeline {
                         allHealthy = false
                     }
 
-                    // Check Monolith
                     retry = 0
                     while (retry < maxRetries) {
                         def code = sh(script: 'curl -sf -o /dev/null -w "%{http_code}" http://localhost:3000/api/health || true', returnStdout: true).trim()
@@ -119,7 +134,6 @@ pipeline {
                         allHealthy = false
                     }
 
-                    // Check Realtime
                     retry = 0
                     while (retry < maxRetries) {
                         def code = sh(script: 'curl -sf -o /dev/null -w "%{http_code}" http://localhost:3005/health || true', returnStdout: true).trim()
@@ -170,10 +184,6 @@ pipeline {
             echo """
             ==========================================
             FAILED! Build: ${BUILD_TAG}
-            Check logs above for errors.
-            Common fixes:
-            - Missing .env file? Create at /home/ubuntu/flow-backend/.env
-            - Docker not installed? sudo apt install docker.io docker-compose
             ==========================================
             """
         }
