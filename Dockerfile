@@ -29,6 +29,7 @@ RUN npm run build -w realtime
 
 # --- Monolith ---
 FROM node:20 AS monolith
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=builder /app/node_modules /app/node_modules
 COPY --from=builder /app/shared/package.json /app/shared/
@@ -41,6 +42,7 @@ CMD ["node", "monolith/dist/index.js"]
 
 # --- Gateway ---
 FROM node:20 AS gateway
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=builder /app/node_modules /app/node_modules
 COPY --from=builder /app/shared/package.json /app/shared/
@@ -52,6 +54,7 @@ CMD ["node", "gateway/dist/index.js"]
 
 # --- Realtime ---
 FROM node:20 AS realtime
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=builder /app/node_modules /app/node_modules
 COPY --from=builder /app/shared/package.json /app/shared/
