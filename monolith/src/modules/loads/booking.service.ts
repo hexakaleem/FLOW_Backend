@@ -5,6 +5,29 @@ import { EventBus } from '../../events/EventBus';
 import { LoadModel, ILoad } from './models/load.model';
 import { BookingRequestModel, IBookingRequest } from './models/booking-request.model';
 import { TruckService } from '../fleet';
+import type { ITruck } from '../fleet/models/truck.model';
+
+function validateTruckSpecsForLoad(truck: ITruck, load: ILoad): string | null {
+  if (truck.type !== load.truckType) {
+    return `Truck type "${truck.type}" does not match load requirement "${load.truckType}"`;
+  }
+  if (load.weight > 0 && truck.specs.maxWeight && truck.specs.maxWeight < load.weight) {
+    return `Truck max weight (${truck.specs.maxWeight} lbs) cannot handle load weight (${load.weight} lbs)`;
+  }
+  if (load.requiresHazmat && !truck.specs.isHazmatCertified) {
+    return 'Load requires a hazmat-certified truck';
+  }
+  if (load.requiresLiftgate && !truck.specs.hasLiftgate) {
+    return 'Load requires a truck with liftgate';
+  }
+  if (load.maxVehicleLength && truck.specs.length && truck.specs.length > load.maxVehicleLength) {
+    return `Truck length (${truck.specs.length}ft) exceeds load max length (${load.maxVehicleLength}ft)`;
+  }
+  if ((load.temperatureMin != null || load.temperatureMax != null) && truck.type !== 'reefer') {
+    return 'Load requires a reefer truck for temperature-controlled transport';
+  }
+  return null;
+}
 
 export class BookingService {
   static async requestBooking(
@@ -34,6 +57,16 @@ export class BookingService {
 
     if (!ownsTruck) {
       throw AppError.notFound('Truck', dto.truckId);
+    }
+
+    const truck = await TruckService.getTruckById(dto.truckId, carrierOrgId);
+    if (!truck) {
+      throw AppError.notFound('Truck', dto.truckId);
+    }
+
+    const specError = validateTruckSpecsForLoad(truck, load);
+    if (specError) {
+      throw AppError.badRequest('TRUCK_SPEC_MISMATCH', specError);
     }
 
     const existingRequest = await BookingRequestModel.findOne({

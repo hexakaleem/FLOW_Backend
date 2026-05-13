@@ -10,6 +10,8 @@ import { validateTransition } from './status-machine';
 import { LoadModel, ILoad } from './models/load.model';
 import { TruckService } from '../fleet';
 import { MarketplaceService } from './marketplace.service';
+import { MatchingService } from './matching.service';
+import { reverseGeocode } from '../../lib/geocoding';
 
 function haversineDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 3958.8;
@@ -47,29 +49,6 @@ async function geocodeAddress(
     lat: parseFloat(results[0].lat),
     lng: parseFloat(results[0].lon),
   };
-}
-
-export async function reverseGeocode(
-  lat: number,
-  lng: number,
-): Promise<{ address: string; city: string; state: string; zip: string } | null> {
-  try {
-    const url = `${config.external.nominatimUrl}/reverse?lat=${lat}&lon=${lng}&format=json&zoom=14`;
-    const response = await axios.get(url, {
-      headers: { 'User-Agent': 'FlowLoads/1.0' },
-    });
-    const data = response.data as { address?: Record<string, string> };
-    if (!data || !data.address) return null;
-    const a = data.address;
-    return {
-      address: a.road ? `${a.house_number ?? ''} ${a.road}`.trim() : (a.display_name ?? ''),
-      city: a.city || a.town || a.village || a.county || '',
-      state: a.state || '',
-      zip: a.postcode || '',
-    };
-  } catch {
-    return null;
-  }
 }
 
 export class LoadService {
@@ -330,6 +309,7 @@ export class LoadService {
     setImmediate(() => {
       MarketplaceService.checkLaneMatches(load).catch(() => {});
       MarketplaceService.checkSavedSearchMatches(load).catch(() => {});
+      MatchingService.matchTrucksForLoad(load).catch(() => {});
     });
 
     setImmediate(() => {
@@ -533,6 +513,7 @@ export class LoadService {
       setImmediate(() => {
         MarketplaceService.checkLaneMatches(load).catch(() => {});
         MarketplaceService.checkSavedSearchMatches(load).catch(() => {});
+        MatchingService.matchTrucksForLoad(load).catch(() => {});
       });
     }
 

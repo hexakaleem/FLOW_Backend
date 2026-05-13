@@ -4,6 +4,7 @@ import { isValidVin, buildPaginationQuery, encodeCursor } from '@flow/shared';
 import type { CreateTruckDTO, UpdateTruckDTO, TruckType } from '@flow/shared';
 import { config } from '../../config';
 import { AppError } from '../../lib/errors';
+import { redis } from '../../lib/redis';
 import { TruckModel, ITruck } from './models/truck.model';
 
 export class TruckService {
@@ -373,5 +374,14 @@ export class TruckService {
       { status: 'available', activeLoadId: null },
       { new: true },
     );
+  }
+
+  static async updateTruckLocation(truckId: string, orgId: string, lat: number, lng: number): Promise<void> {
+    const truck = await TruckModel.findOne({ _id: truckId, orgId });
+    if (!truck) {
+      throw AppError.notFound('Truck', truckId);
+    }
+    await redis.geoadd('trucks:locations', lng, lat, truckId);
+    await redis.set(`truck:${truckId}:location_updated`, Date.now().toString(), 'EX', 86400);
   }
 }

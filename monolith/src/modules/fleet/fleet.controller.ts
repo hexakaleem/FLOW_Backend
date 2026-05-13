@@ -199,10 +199,26 @@ export class FleetController {
       }
 
       await redis.geoadd('drivers:locations', lng, lat, userId);
-      // Set a TTL so stale driver locations auto-expire (optional but recommended)
-      // Redis GEO does not support TTL natively; we can use a separate key or periodic cleanup.
 
       res.status(200).json({ success: true, data: { updated: true } });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async updateTruckLocation(req: Request, res: Response, next: NextFunction) {
+    try {
+      const companyId = req.auth!.companyId || '';
+      const { lat, lng } = req.body;
+
+      if (typeof lat !== 'number' || typeof lng !== 'number') {
+        res.status(400).json({ success: false, error: { code: 'INVALID_COORDS', message: 'lat and lng are required' } });
+        return;
+      }
+
+      await TruckService.updateTruckLocation(req.params.id, companyId, lat, lng);
+      const body: ApiResponse = { success: true, data: { updated: true } };
+      res.status(200).json(body);
     } catch (err) {
       next(err);
     }

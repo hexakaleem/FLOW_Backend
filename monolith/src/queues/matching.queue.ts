@@ -1,6 +1,8 @@
 import { Queue, Worker } from 'bullmq';
-import { redis, redisPub } from '../lib/redis';
+import { redis } from '../lib/redis';
 import type { LoadPostedEvent, DomainEvent } from '../events/events.types';
+import { MatchingService } from '../modules/loads/matching.service';
+import { LoadModel } from '../modules/loads/models/load.model';
 
 const MATCHING_QUEUE_NAME = 'flow-matching';
 
@@ -30,58 +32,16 @@ export const nearbyMatcherWorker = new Worker(
 );
 
 async function handleLoadPosted(event: LoadPostedEvent): Promise<void> {
-  const { loadId, origin, truckType } = event.payload;
+  const { loadId } = event.payload;
 
   try {
-    const nearbyRaw: unknown = await redis.georadius(
-      'drivers:locations',
-      origin.lng,
-      origin.lat,
-      50,
-      'mi',
-      'WITHDIST',
-      'ASC',
-    );
-
-    if (!Array.isArray(nearbyRaw) || nearbyRaw.length === 0) {
+    const load = await LoadModel.findById(loadId).lean();
+    if (!load) {
+      console.warn(`[MATCHER] load ${loadId} not found for matching`);
       return;
     }
 
-    const driverIds: string[] = [];
-    for (const item of nearbyRaw) {
-      if (Array.isArray(item) && item.length > 0) {
-        driverIds.push(String(item[0]));
-      } else {
-        driverIds.push(String(item));
-      }
-    }
-
-    if (driverIds.length === 0) return;
-
-    await redisPub.publish(
-      'flow:delivery-events',
-      JSON.stringify({
-        type: 'socket:emit',
-        rooms: driverIds.map((id) => `driver:${id}`),
-        event: 'load:nearby',
-        payload: {
-          loadId,
-          origin: {
-            city: origin.city,
-            state: origin.state,
-            lat: origin.lat,
-            lng: origin.lng,
-          },
-          truckType,
-          rate: event.payload.rate,
-          rateType: event.payload.rateType,
-          pickupDate: event.payload.pickupDate,
-          weight: event.payload.weight,
-        },
-      }),
-    );
-
-    console.log(`[MATCHER] notified ${driverIds.length} drivers about load ${loadId}`);
+    await MatchingService.matchTrucksForLoad(load as any);
   } catch (err) {
     console.error(`[MATCHER] handleLoadPosted error:`, err);
   }

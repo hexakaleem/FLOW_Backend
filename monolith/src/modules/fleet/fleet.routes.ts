@@ -102,3 +102,9 @@ fleetRoutes.post(
   checkRole(['carrier', 'independent_driver', 'company_driver']),
   FleetController.updateDriverLocation,
 );
+
+fleetRoutes.post(
+  '/trucks/:id/location',
+  checkRole(['carrier', 'independent_driver', 'company_driver']),
+  FleetController.updateTruckLocation,
+);

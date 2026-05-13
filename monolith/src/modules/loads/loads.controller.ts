@@ -4,6 +4,7 @@ import { LoadService } from './load.service';
 import { BookingService } from './booking.service';
 import { CounterOfferService } from './counter-offer.service';
 import { TruckRequestService } from './truck-request.service';
+import { MatchingService } from './matching.service';
 
 export class LoadsController {
   // ---------------------------------------------------------------------------
@@ -381,6 +382,18 @@ export class LoadsController {
       const role = req.auth!.role;
       const summary = await LoadService.getSummary(companyId, userId, role);
       const body: ApiResponse = { success: true, data: summary };
+      res.status(200).json(body);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async getMatchingTrucks(req: Request, res: Response, next: NextFunction) {
+    try {
+      const companyId = req.auth!.companyId || '';
+      const load = await LoadService.getLoadById(req.params.id, companyId);
+      const matches = await MatchingService.getMatchingTrucksForLoad(load as any);
+      const body: ApiResponse = { success: true, data: { matches } };
       res.status(200).json(body);
     } catch (err) {
       next(err);

@@ -102,3 +102,9 @@ loadRoutes.post(
   checkRole(['carrier']),
   LoadsController.denyTruckRequest,
 );
+
+loadRoutes.get(
+  '/:id/matching-trucks',
+  checkRole(['broker']),
+  LoadsController.getMatchingTrucks,
+);

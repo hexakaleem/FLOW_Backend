@@ -69,6 +69,7 @@ export interface MarketplaceFilters {
   maxDistance?: number;
   pickupDateStart?: string;
   pickupDateEnd?: string;
+  search?: string;
   sort?: 'rate' | 'distance' | 'postedAt' | 'pickupDate';
   sortDir?: 'asc' | 'desc';
   cursor?: string;

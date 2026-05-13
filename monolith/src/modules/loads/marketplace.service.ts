@@ -75,6 +75,20 @@ export class MarketplaceService {
       query.estimatedDistance = { $lte: filters.maxDistance };
     }
 
+    if (filters.search) {
+      const searchRegex = new RegExp(filters.search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+      query.$or = [
+        { 'origin.city': searchRegex },
+        { 'origin.state': searchRegex },
+        { 'origin.address': searchRegex },
+        { 'destination.city': searchRegex },
+        { 'destination.state': searchRegex },
+        { 'destination.address': searchRegex },
+        { commodity: searchRegex },
+        { truckType: searchRegex },
+      ];
+    }
+
     if (filters.pickupDateStart || filters.pickupDateEnd) {
       query.pickupDate = {};
       if (filters.pickupDateStart) {
