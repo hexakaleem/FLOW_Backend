@@ -1,4 +1,5 @@
 import { ROLE_DEFAULT_PERMISSIONS } from '@flow/shared';
+import { UserModel } from '../auth/models/user.model';
 import { permissionCache } from '../../lib/cache';
 import { MembershipModel } from './models/membership.model';
 import { RoleModel } from './models/role.model';
@@ -11,16 +12,23 @@ export class PermissionService {
 
     try {
       const membership = await MembershipModel.findOne({ userId, status: 'active' });
+      
+      let roleToUse = userRole;
+      if (!roleToUse) {
+        const user = await UserModel.findById(userId).select('role');
+        roleToUse = user?.role;
+      }
+
       if (!membership) {
         // Fall back to default role permissions
-        const defaults = ROLE_DEFAULT_PERMISSIONS[userRole || ''] || [];
+        const defaults = ROLE_DEFAULT_PERMISSIONS[roleToUse || ''] || [];
         permissionCache.set(cacheKey, defaults, 300);
         return defaults;
       }
 
       const role = await RoleModel.findById(membership.roleId);
       if (!role) {
-        const defaults = ROLE_DEFAULT_PERMISSIONS[userRole || ''] || [];
+        const defaults = ROLE_DEFAULT_PERMISSIONS[roleToUse || ''] || [];
         permissionCache.set(cacheKey, defaults, 300);
         return defaults;
       }
@@ -29,7 +37,8 @@ export class PermissionService {
       permissionCache.set(cacheKey, permissions, 300);
       return permissions;
     } catch (err) {
-      const defaults = ROLE_DEFAULT_PERMISSIONS[userRole || ''] || [];
+      const user = await UserModel.findById(userId).select('role');
+      const defaults = ROLE_DEFAULT_PERMISSIONS[user?.role || ''] || [];
       return defaults;
     }
   }
