@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import path from 'path';
 import { v4 as uuidV4 } from 'uuid';
 import { config } from './config';
 import { connectDatabases } from './lib/mongo';
@@ -39,6 +40,9 @@ async function bootstrap(): Promise<void> {
   );
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true }));
+
+  // Serve locally-uploaded files (dev/demo fallback when Cloudinary is not configured)
+  app.use('/uploads', express.static(path.resolve(__dirname, '../uploads')));
 
   app.use((req, _res, next) => {
     (req as unknown as Record<string, unknown>).requestId = uuidV4();

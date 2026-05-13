@@ -7,6 +7,8 @@ export const DOCUMENT_TYPES = [
   'pod',
   'invoice',
   'insurance',
+  'registration',
+  'vehicle_photo',
   'other',
 ] as const;
 export type DocumentType = (typeof DOCUMENT_TYPES)[number];
