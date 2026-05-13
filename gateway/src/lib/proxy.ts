@@ -31,6 +31,13 @@ function buildHeaders(req: Request): Record<string, string> {
     headers['X-User-Verified'] = String(!!user.verified);
   }
 
+  // Forward the original Authorization header so the monolith's verifyJWT
+  // middleware can validate the token on auth-protected routes (/me, /logout, etc.)
+  const authorization = req.headers.authorization;
+  if (authorization) {
+    headers['Authorization'] = authorization;
+  }
+
   const contentType = req.headers['content-type'];
   if (contentType) {
     headers['Content-Type'] = contentType;
