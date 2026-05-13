@@ -45,7 +45,7 @@ export class TruckService {
       plateNumber: dto.plateNumber,
       plateState: dto.plateState,
       internalId: dto.internalId,
-      type: dto.type as TruckType,
+      type: (dto.type as string || 'flatbed').toLowerCase().replace(/\s+/g, '_') as TruckType,
       vin: dto.vin ?? null,
       year: dto.year ?? null,
       make: dto.make ?? null,
@@ -89,7 +89,7 @@ export class TruckService {
     }
 
     if (filters?.type) {
-      query.type = filters.type;
+      query.type = filters.type.toLowerCase().replace(/\s+/g, '_');
     }
 
     const trucks = await TruckModel.find(query)

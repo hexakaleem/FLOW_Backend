@@ -135,10 +135,10 @@ export class LoadService {
       pickupDate,
       deliveryDate,
       weight: dto.weight,
-      truckType: dto.truckType,
+      truckType: (dto.truckType || 'flatbed').toLowerCase().replace(/\s+/g, '_') as any,
       commodity: dto.commodity ?? null,
       rate: dto.rate,
-      rateType: dto.rateType,
+      rateType: (dto.rateType === 'flat' ? 'per_trip' : (dto.rateType || 'per_trip')) as any,
       specialRequirements: dto.specialRequirements ?? null,
       isPublic: dto.isPublic !== undefined ? dto.isPublic : true,
       requireVerifiedCarrier: dto.requireVerifiedCarrier ?? false,
@@ -216,7 +216,7 @@ export class LoadService {
     }
 
     if (filters.truckType) {
-      query.truckType = filters.truckType;
+      query.truckType = filters.truckType.toLowerCase().replace(/\s+/g, '_');
     }
 
     if (filters.pickupDateStart || filters.pickupDateEnd) {
@@ -425,7 +425,14 @@ export class LoadService {
 
     for (const field of updatableFields) {
       if (dto[field] !== undefined) {
-        (load as unknown as Record<string, unknown>)[field] = dto[field];
+        let val = dto[field];
+        if (field === 'truckType' && typeof val === 'string') {
+          val = val.toLowerCase().replace(/\s+/g, '_');
+        }
+        if (field === 'rateType' && typeof val === 'string') {
+          val = (val === 'flat' ? 'per_trip' : val);
+        }
+        (load as unknown as Record<string, unknown>)[field] = val;
       }
     }
 

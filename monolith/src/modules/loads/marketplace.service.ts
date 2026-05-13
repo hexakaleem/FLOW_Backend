@@ -67,7 +67,7 @@ export class MarketplaceService {
     }
 
     if (filters.truckType) {
-      query.truckType = filters.truckType;
+      query.truckType = filters.truckType.toLowerCase().replace(/\s+/g, '_');
     }
 
     // Rate range filter

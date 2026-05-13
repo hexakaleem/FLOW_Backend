@@ -39,6 +39,14 @@ export class BookingService {
     if (!Types.ObjectId.isValid(loadId)) {
       throw AppError.notFound('Load', loadId);
     }
+
+    if (!dto.truckId || dto.truckId === 'undefined') {
+      throw AppError.badRequest('INVALID_TRUCK_ID', 'Valid truck selection is required');
+    }
+    if (!dto.driverId || dto.driverId === 'undefined') {
+      throw AppError.badRequest('INVALID_DRIVER_ID', 'Valid driver selection is required');
+    }
+
     const load = await LoadModel.findById(new Types.ObjectId(loadId));
 
     if (!load) {
