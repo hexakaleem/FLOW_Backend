@@ -30,6 +30,7 @@ export interface UpdateTruckDTO {
     hasLiftgate?: boolean;
     isHazmatCertified?: boolean;
   };
+  status?: string;
 }
 
 export interface AssignDriverDTO {
