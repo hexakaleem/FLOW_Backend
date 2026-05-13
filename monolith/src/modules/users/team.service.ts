@@ -200,7 +200,7 @@ export class TeamService {
     // an invite meant for someone else if they test the link in the same browser.
     const loggedInProfile = await ProfileModel.findOne({ userId: effectiveUserId });
     if (loggedInProfile && loggedInProfile.email.toLowerCase() !== invite.email.toLowerCase()) {
-      throw AppError.forbidden('EMAIL_MISMATCH', `This invite is for ${invite.email}. Please log out to accept it.`);
+      throw new AppError(403, 'EMAIL_MISMATCH', `This invite is for ${invite.email}. Please log out to accept it.`);
     }
 
     const existingMembership = await MembershipModel.findOne({
