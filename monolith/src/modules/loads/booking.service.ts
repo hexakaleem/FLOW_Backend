@@ -321,7 +321,6 @@ export class BookingService {
     }
 
     const load = await LoadModel.findById(new Types.ObjectId(loadId));
-
     if (!load) {
       throw AppError.notFound('Load', loadId);
     }
@@ -336,26 +335,81 @@ export class BookingService {
       throw AppError.notFound('Booking request', bookingId);
     }
 
-    if (request.carrierUserId.toString() !== userId) {
+    // Security check: must be the user who made the request OR an org member
+    // (Simplified for now to match current pattern)
+    if (request.carrierUserId.toString() !== userId && request.carrierOrgId.toString() !== orgId) {
       throw AppError.forbidden('You can only cancel your own booking requests');
     }
 
-    if (request.status !== 'pending') {
-      throw AppError.badRequest(
-        'REQUEST_NOT_PENDING',
-        'Only pending booking requests can be cancelled',
-      );
+    // Scenario A: Cancelling a pending bid
+    if (request.status === 'pending') {
+      request.status = 'cancelled';
+      await request.save();
+
+      if (load.bookingRequestCount > 0) {
+        load.bookingRequestCount -= 1;
+        await load.save();
+      }
+
+      return request;
     }
 
-    request.status = 'cancelled';
-    await request.save();
+    // Scenario B: Cancelling a confirmed booking (releasing the load)
+    if (request.status === 'accepted') {
+      // Check if the load has already moved past 'booked'
+      if (load.status !== 'booked') {
+        throw AppError.badRequest(
+          'LOAD_ALREADY_IN_PROGRESS',
+          'Cannot cancel a booking once the load is in transit or completed',
+        );
+      }
 
-    if (load.bookingRequestCount > 0) {
-      load.bookingRequestCount -= 1;
+      request.status = 'cancelled';
+      await request.save();
+
+      // Revert load to 'posted' so other carriers can bid
+      load.status = 'posted';
+      const truckIdToRelease = load.assignedTruckId?.toString();
+      
+      load.assignedTruckId = undefined;
+      load.assignedDriverId = undefined;
+      load.assignedAt = undefined;
+      load.confirmedBookingId = undefined;
+
+      load.statusHistory.push({
+        status: 'posted',
+        changedBy: userId,
+        changedAt: new Date(),
+        note: 'Carrier cancelled booking; load returned to marketplace',
+      });
+
       await load.save();
+
+      // Release the truck
+      if (truckIdToRelease) {
+        setImmediate(() => {
+          TruckService.setTruckAvailable(truckIdToRelease, orgId).catch((err) =>
+            console.error(`[BOOKING] Failed to release truck after carrier cancel: ${err.message}`),
+          );
+        });
+      }
+
+      // Notify Broker
+      setImmediate(() => {
+        EventBus.emitSocketEvent([`org:${load.orgId}`], 'booking:cancelled_by_carrier', {
+          loadId: load._id,
+          carrierOrgId: orgId,
+          message: `Carrier cancelled their booking for load FL-${load._id.toString().slice(-6).toUpperCase()}. Load is now back on marketplace.`
+        }).catch(() => {});
+      });
+
+      return request;
     }
 
-    return request;
+    throw AppError.badRequest(
+      'REQUEST_NOT_CANCELLABLE',
+      `Booking request in status "${request.status}" cannot be cancelled.`,
+    );
   }
 
   static async listBookingRequests(loadId: string, orgId: string, role?: string): Promise<IBookingRequest[]> {
