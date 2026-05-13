@@ -93,6 +93,16 @@ export class CounterOfferService {
       });
     });
 
+    setImmediate(() => {
+      EventBus.publish({
+        type: 'counteroffer:submitted',
+        payload: {
+          counterOfferId: counterOffer._id.toString(),
+          loadId,
+          offeredBy: userId,
+          offeredTo: otherPartyId,
+          proposedRate: dto.proposedRate ?? null,
+        },
         timestamp: new Date().toISOString(),
       }).catch(() => {});
 
@@ -190,6 +200,15 @@ export class CounterOfferService {
 
     await load.save();
 
+    setImmediate(() => {
+      EventBus.publish({
+        type: 'counteroffer:accepted',
+        payload: {
+          counterOfferId: offerId,
+          loadId,
+          acceptedBy: userId,
+          acceptedByRole: load.createdBy.toString() === userId ? 'broker' : 'carrier',
+        },
         timestamp: new Date().toISOString(),
       }).catch(() => {});
 
