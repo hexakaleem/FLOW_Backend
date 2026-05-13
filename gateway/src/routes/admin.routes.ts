@@ -14,5 +14,6 @@ router.post('/verifications/:userId/reject', authenticate, requireRole('admin'),
 router.get('/users', authenticate, requireRole('admin'), forwardToMonolith);
 router.post('/users/:userId/suspend', authenticate, requireRole('admin'), forwardToMonolith);
 router.post('/users/:userId/reactivate', authenticate, requireRole('admin'), forwardToMonolith);
+router.delete('/users/:userId', authenticate, requireRole('admin'), forwardToMonolith);
 
 export { router as adminRoutes };

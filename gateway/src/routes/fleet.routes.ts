@@ -58,4 +58,13 @@ router.patch(
   forwardToMonolith,
 );
 
+// --- Location Tracking ---
+router.post('/drivers/location', authenticate, forwardToMonolith);
+router.post(
+  '/trucks/:id/location',
+  authenticate,
+  requirePermission('fleet:write'),
+  forwardToMonolith,
+);
+
 export { router as fleetRoutes };

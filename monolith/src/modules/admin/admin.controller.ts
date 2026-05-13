@@ -89,4 +89,14 @@ export class AdminController {
       next(err);
     }
   }
+
+  static async deleteUser(req: Request, res: Response, next: NextFunction) {
+    try {
+      const result = await AdminService.deleteUser(req.params.userId);
+      const body: ApiResponse = { success: true, data: result };
+      res.status(200).json(body);
+    } catch (err) {
+      next(err);
+    }
+  }
 }

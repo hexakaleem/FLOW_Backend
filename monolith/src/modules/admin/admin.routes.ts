@@ -41,3 +41,9 @@ adminRoutes.post(
   checkRole(['admin']),
   AdminController.reactivateUser,
 );
+
+adminRoutes.delete(
+  '/users/:userId',
+  checkRole(['admin']),
+  AdminController.deleteUser,
+);

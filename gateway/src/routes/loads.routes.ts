@@ -66,4 +66,23 @@ router.post(
   forwardToMonolith,
 );
 
+// Load templates
+router.get('/templates', authenticate, requirePermission('load:read'), forwardToMonolith);
+router.post('/:id/templates', authenticate, requirePermission('load:update'), forwardToMonolith);
+
+// Lifecycle actions
+router.post('/:id/post', authenticate, requirePermission('load:update'), forwardToMonolith);
+router.post('/:id/cancel', authenticate, requirePermission('load:update'), forwardToMonolith);
+
+// Booking cancellation
+router.put(
+  '/:id/bookings/:bookingId/cancel',
+  authenticate,
+  requirePermission('load:cancel'),
+  forwardToMonolith,
+);
+
+// Matching
+router.get('/:id/matching-trucks', authenticate, requirePermission('load:read'), forwardToMonolith);
+
 export { router as loadRoutes };

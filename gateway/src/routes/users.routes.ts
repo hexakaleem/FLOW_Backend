@@ -24,5 +24,6 @@ router.post(
   forwardToMonolith,
 );
 router.delete('/:id', authenticate, forwardToMonolith);
+router.get('/:id/permissions', authenticate, requireSelfOrPermission('user:read'), forwardToMonolith);
 
 export { router as userRoutes };

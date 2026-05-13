@@ -167,4 +167,18 @@ export class AdminService {
       reactivatedBy: adminId,
     };
   }
+
+  static async deleteUser(userId: string) {
+    const user = await UserModel.findById(userId);
+    if (!user) {
+      throw AppError.notFound('User', userId);
+    }
+
+    await user.deleteOne();
+
+    return {
+      success: true,
+      userId,
+    };
+  }
 }

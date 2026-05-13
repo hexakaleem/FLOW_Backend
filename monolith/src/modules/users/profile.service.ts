@@ -58,10 +58,10 @@ export class ProfileService {
         name: `${firstName} ${lastName} Operations`,
         ownerId: userId,
         address: {
-          line1: '',
-          city: '',
-          state: '',
-          zip: '',
+          line1: 'Pending',
+          city: 'Pending',
+          state: 'Pending',
+          zip: 'Pending',
         },
       });
       effectiveOrgId = org._id.toString();
@@ -223,11 +223,11 @@ export class ProfileService {
           scacCode: dto.scacCode ?? null,
           factoringCompany: dto.factoringCompany ?? null,
           address: {
-            line1: dto.address.line1,
-            line2: dto.address.line2 || '',
-            city: dto.address.city,
-            state: dto.address.state,
-            zip: dto.address.zip,
+            line1: dto.address?.line1 || 'Pending',
+            line2: dto.address?.line2 || '',
+            city: dto.address?.city || 'Pending',
+            state: dto.address?.state || 'Pending',
+            zip: dto.address?.zip || 'Pending',
           },
         },
       },
