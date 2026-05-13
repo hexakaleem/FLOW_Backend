@@ -247,6 +247,34 @@ export const notificationWorker = new Worker(
         }
         break;
       }
+      case 'inapp:user-registered': {
+        const { userId, email, role } = payload as { userId?: string; email?: string; role?: string };
+        if (userId) {
+          await NotificationService.createNotification(
+            userId, 'user:registered', 'Welcome to FLOW!',
+            `Your ${role || 'driver'} account has been created. Complete your profile to get started.`,
+            payload,
+          ).catch((err) => console.error(`[NOTIFY] persist error: ${err.message}`));
+          const emits = [{ rooms: [`user:${userId}`], event: 'notification', data: { type: 'user:registered', userId, email } }];
+          await publishDeliveryEvents(emits);
+        }
+        break;
+      }
+      case 'inapp:truckrequest-created': {
+        const { brokerOrgId, carrierOrgId, loadId, truckRequestId } = payload as {
+          brokerOrgId?: string; carrierOrgId?: string; loadId?: string; truckRequestId?: string;
+        };
+        if (carrierOrgId) {
+          await NotificationService.createNotification(
+            carrierOrgId, 'truckrequest:created', 'New Truck Request',
+            `You have a new truck request for load ${(loadId || '').slice(-6).toUpperCase()}`,
+            payload,
+          ).catch((err) => console.error(`[NOTIFY] persist error: ${err.message}`));
+          const emits = [{ rooms: [`org:${carrierOrgId}`], event: 'truckrequest:new', data: payload }];
+          await publishDeliveryEvents(emits);
+        }
+        break;
+      }
       default:
         console.log(`[NOTIFY] unhandled type: ${type}`);
     }

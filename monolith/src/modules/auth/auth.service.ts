@@ -7,6 +7,7 @@ import { AppError } from '../../lib/errors';
 import { sendEmail } from '../../lib/email';
 import { otpCache } from '../../lib/cache';
 import { uploadToCloudinary } from '../../lib/cloudinary';
+import { EventBus } from '../../events/EventBus';
 import { UserModel, IUser } from './models/user.model';
 import { PasswordService } from './password.service';
 import { TokenService } from './token.service';
@@ -63,6 +64,19 @@ export class AuthService {
       console.error('Failed to send verification OTP during registration:', e?.message || e);
       // Non-blocking: user can resend OTP later
     }
+
+    // Emit user:registered domain event
+    setImmediate(() => {
+      EventBus.publish({
+        type: 'user:registered',
+        payload: {
+          userId: user._id.toString(),
+          email: user.email,
+          role: user.role,
+        },
+        timestamp: new Date().toISOString(),
+      }).catch(() => {});
+    });
 
     return { userId: user._id.toString(), email: user.email, role: user.role };
   }

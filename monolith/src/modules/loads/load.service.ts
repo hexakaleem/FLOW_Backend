@@ -453,6 +453,23 @@ export class LoadService {
 
     await load.save();
 
+    // Release the assigned truck back to "available" when the load reaches
+    // a terminal or post-delivery status. Without this, trucks stay stuck
+    // in "in_transit" and can never be booked again.
+    if (
+      ['delivered', 'completed', 'cancelled'].includes(newStatus) &&
+      load.assignedTruckId
+    ) {
+      setImmediate(() => {
+        TruckService.setTruckAvailable(
+          load.assignedTruckId!.toString(),
+          load.orgId.toString(),
+        ).catch((err) =>
+          console.error(`[LOADS] Failed to release truck: ${err.message}`),
+        );
+      });
+    }
+
     if (newStatus === 'posted') {
       setImmediate(() => {
         MarketplaceService.checkLaneMatches(load).catch(() => {});
@@ -562,6 +579,32 @@ export class LoadService {
     });
 
     await load.save();
+
+    // Release the assigned truck back to "available" if one was assigned
+    if (load.assignedTruckId) {
+      setImmediate(() => {
+        TruckService.setTruckAvailable(
+          load.assignedTruckId!.toString(),
+          load.orgId.toString(),
+        ).catch((err) =>
+          console.error(`[LOADS] Failed to release truck on cancel: ${err.message}`),
+        );
+      });
+    }
+
+    // Emit load:updated event for cancellation
+    setImmediate(() => {
+      EventBus.publish({
+        type: 'load:updated',
+        payload: {
+          loadId: load._id.toString(),
+          orgId: load.orgId.toString(),
+          status: 'cancelled',
+          changedBy: userId,
+        },
+        timestamp: new Date().toISOString(),
+      }).catch(() => {});
+    });
 
     return load;
   }
