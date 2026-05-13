@@ -93,17 +93,16 @@ export class CounterOfferService {
       });
     });
 
-    setImmediate(() => {
-      EventBus.publish({
-        type: 'counteroffer:submitted',
-        payload: {
-          counterOfferId: counterOffer._id.toString(),
-          loadId,
-          offeredBy: userId,
-          offeredTo: otherPartyId,
-          proposedRate: dto.proposedRate ?? null,
-        },
         timestamp: new Date().toISOString(),
+      }).catch(() => {});
+
+      // Live Counter Offer Notification
+      EventBus.emitSocketEvent([`user:${otherPartyId}`], 'counteroffer:submitted', {
+        counterOfferId: counterOffer._id.toString(),
+        loadId,
+        offeredBy: userId,
+        proposedRate: dto.proposedRate ?? null,
+        message: `New counter-offer of $${dto.proposedRate?.toLocaleString()} received`
       }).catch(() => {});
     });
 
@@ -191,16 +190,15 @@ export class CounterOfferService {
 
     await load.save();
 
-    setImmediate(() => {
-      EventBus.publish({
-        type: 'counteroffer:accepted',
-        payload: {
-          counterOfferId: offerId,
-          loadId,
-          acceptedBy: userId,
-          acceptedByRole: load.createdBy.toString() === userId ? 'broker' : 'carrier',
-        },
         timestamp: new Date().toISOString(),
+      }).catch(() => {});
+
+      // Live Counter Offer Acceptance Notification
+      EventBus.emitSocketEvent([`user:${counterOffer.offeredBy.toString()}`], 'counteroffer:accepted', {
+        counterOfferId: offerId,
+        loadId,
+        acceptedBy: userId,
+        message: `Your counter-offer for load FL-${loadId.toString().slice(-6).toUpperCase()} was accepted!`
       }).catch(() => {});
     });
 

@@ -13,6 +13,21 @@ import { MarketplaceService } from './marketplace.service';
 import { MatchingService } from './matching.service';
 import { reverseGeocode } from '../../lib/geocoding';
 
+function normalizeTruckType(type: string | undefined | null): string {
+  if (!type) return 'flatbed';
+  const t = type.toLowerCase().trim().replace(/[\s_-]+/g, '');
+  const mapping: Record<string, string> = {
+    'dryvan': 'dry_van',
+    'stepdeck': 'step_deck',
+    'poweronly': 'power_only',
+    'sprintervan': 'sprinter_van',
+    'boxtruck': 'box_truck',
+    'hotshot': 'hot_shot',
+    'heavyhaul': 'heavy_haul',
+  };
+  return mapping[t] || type.toLowerCase().trim().replace(/[\s-]+/g, '_');
+}
+
 function haversineDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 3958.8;
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
@@ -135,7 +150,7 @@ export class LoadService {
       pickupDate,
       deliveryDate,
       weight: dto.weight,
-      truckType: (dto.truckType || 'flatbed').toLowerCase().replace(/\s+/g, '_') as any,
+      truckType: normalizeTruckType(dto.truckType) as any,
       commodity: dto.commodity ?? null,
       rate: dto.rate,
       rateType: (dto.rateType === 'flat' ? 'per_trip' : (dto.rateType || 'per_trip')) as any,
@@ -216,7 +231,7 @@ export class LoadService {
     }
 
     if (filters.truckType) {
-      query.truckType = filters.truckType.toLowerCase().replace(/\s+/g, '_');
+      query.truckType = normalizeTruckType(filters.truckType);
     }
 
     if (filters.pickupDateStart || filters.pickupDateEnd) {
@@ -427,7 +442,7 @@ export class LoadService {
       if (dto[field] !== undefined) {
         let val = dto[field];
         if (field === 'truckType' && typeof val === 'string') {
-          val = val.toLowerCase().replace(/\s+/g, '_');
+          val = normalizeTruckType(val);
         }
         if (field === 'rateType' && typeof val === 'string') {
           val = (val === 'flat' ? 'per_trip' : val);

@@ -7,6 +7,21 @@ import { AppError } from '../../lib/errors';
 import { redis } from '../../lib/redis';
 import { TruckModel, ITruck } from './models/truck.model';
 
+function normalizeTruckType(type: string | undefined | null): string {
+  if (!type) return 'flatbed';
+  const t = type.toLowerCase().trim().replace(/[\s_-]+/g, '');
+  const mapping: Record<string, string> = {
+    'dryvan': 'dry_van',
+    'stepdeck': 'step_deck',
+    'poweronly': 'power_only',
+    'sprintervan': 'sprinter_van',
+    'boxtruck': 'box_truck',
+    'hotshot': 'hot_shot',
+    'heavyhaul': 'heavy_haul',
+  };
+  return mapping[t] || type.toLowerCase().trim().replace(/[\s-]+/g, '_');
+}
+
 export class TruckService {
   static async createTruck(orgId: string, dto: CreateTruckDTO, userRole?: string): Promise<ITruck> {
     const duplicate = await TruckModel.findOne({
@@ -45,7 +60,7 @@ export class TruckService {
       plateNumber: dto.plateNumber,
       plateState: dto.plateState,
       internalId: dto.internalId,
-      type: (dto.type as string || 'flatbed').toLowerCase().replace(/\s+/g, '_') as TruckType,
+      type: normalizeTruckType(dto.type) as TruckType,
       vin: dto.vin ?? null,
       year: dto.year ?? null,
       make: dto.make ?? null,
@@ -93,7 +108,7 @@ export class TruckService {
     }
 
     if (filters?.type) {
-      query.type = filters.type.toLowerCase().replace(/\s+/g, '_');
+      query.type = normalizeTruckType(filters.type);
     }
 
     const trucks = await TruckModel.find(query)

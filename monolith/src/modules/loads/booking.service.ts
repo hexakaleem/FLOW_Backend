@@ -118,6 +118,15 @@ export class BookingService {
         },
         timestamp: new Date().toISOString(),
       }).catch(() => {});
+
+      // Live Bidding Notification to Broker
+      EventBus.emitSocketEvent([`org:${load.orgId}`], 'booking:requested', {
+        loadId: load._id,
+        bookingRequestId: bookingRequest._id,
+        carrierOrgId,
+        proposedRate: dto.proposedRate || load.rate,
+        message: `New bid received for load FL-${load._id.toString().slice(-6).toUpperCase()} from Carrier #${carrierOrgId.slice(-4).toUpperCase()}`
+      }).catch(() => {});
     });
 
     return bookingRequest;
@@ -367,7 +376,7 @@ export class BookingService {
 
   static async listAllBookingRequests(orgId: string): Promise<any[]> {
     // 1. Get all load IDs for this organization
-    const loads = await LoadModel.find({ orgId: orgId }, { _id: 1, title: 1, origin: 1, destination: 1, status: 1 });
+    const loads = await LoadModel.find({ orgId: orgId }, { _id: 1, title: 1, origin: 1, destination: 1, status: 1, rate: 1 });
     const loadIds = loads.map(l => l._id);
 
     // 2. Get all pending booking requests for these loads

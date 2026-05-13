@@ -11,4 +11,14 @@ export class EventBus {
     };
     await redisPub.publish(DOMAIN_CHANNEL, JSON.stringify(envelope));
   }
+
+  static async emitSocketEvent(rooms: string[], event: string, payload: any): Promise<void> {
+    const envelope = {
+      type: 'socket:emit',
+      rooms,
+      event,
+      payload,
+    };
+    await redisPub.publish('flow:delivery-events', JSON.stringify(envelope));
+  }
 }

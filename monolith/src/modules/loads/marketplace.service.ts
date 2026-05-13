@@ -16,6 +16,21 @@ import {
 } from "./models/booking-request.model";
 import { TruckService } from "../fleet";
 
+function normalizeTruckType(type: string | undefined | null): string {
+  if (!type) return 'flatbed';
+  const t = type.toLowerCase().trim().replace(/[\s_-]+/g, '');
+  const mapping: Record<string, string> = {
+    'dryvan': 'dry_van',
+    'stepdeck': 'step_deck',
+    'poweronly': 'power_only',
+    'sprintervan': 'sprinter_van',
+    'boxtruck': 'box_truck',
+    'hotshot': 'hot_shot',
+    'heavyhaul': 'heavy_haul',
+  };
+  return mapping[t] || type.toLowerCase().trim().replace(/[\s-]+/g, '_');
+}
+
 export class MarketplaceService {
   static async searchLoads(
     filters: MarketplaceFilters,
@@ -67,7 +82,7 @@ export class MarketplaceService {
     }
 
     if (filters.truckType) {
-      query.truckType = filters.truckType.toLowerCase().replace(/\s+/g, '_');
+      query.truckType = normalizeTruckType(filters.truckType);
     }
 
     // Rate range filter
