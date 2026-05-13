@@ -49,6 +49,29 @@ async function geocodeAddress(
   };
 }
 
+export async function reverseGeocode(
+  lat: number,
+  lng: number,
+): Promise<{ address: string; city: string; state: string; zip: string } | null> {
+  try {
+    const url = `${config.external.nominatimUrl}/reverse?lat=${lat}&lon=${lng}&format=json&zoom=14`;
+    const response = await axios.get(url, {
+      headers: { 'User-Agent': 'FlowLoads/1.0' },
+    });
+    const data = response.data as { address?: Record<string, string> };
+    if (!data || !data.address) return null;
+    const a = data.address;
+    return {
+      address: a.road ? `${a.house_number ?? ''} ${a.road}`.trim() : (a.display_name ?? ''),
+      city: a.city || a.town || a.village || a.county || '',
+      state: a.state || '',
+      zip: a.postcode || '',
+    };
+  } catch {
+    return null;
+  }
+}
+
 export class LoadService {
   // ---------------------------------------------------------------------------
   // CREATE LOAD (always starts as draft)
@@ -133,6 +156,11 @@ export class LoadService {
       specialRequirements: dto.specialRequirements ?? null,
       isPublic: dto.isPublic !== undefined ? dto.isPublic : true,
       requireVerifiedCarrier: dto.requireVerifiedCarrier ?? false,
+      requiresHazmat: dto.requiresHazmat ?? false,
+      requiresLiftgate: dto.requiresLiftgate ?? false,
+      maxVehicleLength: dto.maxVehicleLength ?? null,
+      temperatureMin: dto.temperatureMin ?? null,
+      temperatureMax: dto.temperatureMax ?? null,
       status: initialStatus,
       statusHistory: [
         {
@@ -151,13 +179,25 @@ export class LoadService {
   // ---------------------------------------------------------------------------
   // GET LOAD BY ID (scoped by orgId)
   // ---------------------------------------------------------------------------
-  static async getLoadById(loadId: string, orgId?: string): Promise<ILoad | null> {
+  static async getLoadById(
+    loadId: string,
+    orgId?: string,
+    userId?: string,
+    role?: string,
+  ): Promise<ILoad | null> {
     if (!Types.ObjectId.isValid(loadId)) {
       throw AppError.notFound('Load', loadId);
     }
     const query: Record<string, unknown> = { _id: new Types.ObjectId(loadId) };
-    if (orgId) {
-      query.orgId = orgId;
+
+    if (orgId && role !== 'admin') {
+      // If it's a broker, they must own it.
+      // If it's a carrier/driver, they can see it if they own it, are assigned to it, or it's public.
+      if (role === 'broker') {
+        query.orgId = orgId;
+      } else {
+        query.$or = [{ orgId: orgId }, { assignedDriverId: userId }, { isPublic: true }];
+      }
     }
     return LoadModel.findOne(query);
   }
@@ -168,13 +208,22 @@ export class LoadService {
   static async listLoads(
     orgId: string,
     filters: LoadFilters,
+    userId?: string,
+    role?: string,
   ): Promise<{ loads: ILoad[]; meta: Record<string, unknown> }> {
     const { cursorFilter, limit } = buildPaginationQuery(filters.cursor, filters.limit);
 
     const query: Record<string, unknown> = {
-      orgId: orgId,
       ...cursorFilter,
     };
+
+    if (role === 'broker') {
+      query.orgId = orgId;
+    } else if (role === 'carrier' || role === 'independent_driver') {
+      query.$or = [{ orgId: orgId }, { assignedDriverId: userId }];
+    } else if (role !== 'admin') {
+      query.orgId = orgId;
+    }
 
     if (filters.status) {
       query.status = filters.status;
@@ -307,6 +356,11 @@ export class LoadService {
           weight: load.weight,
           pickupDate: load.pickupDate.toISOString(),
           requireVerifiedCarrier: load.requireVerifiedCarrier,
+          requiresHazmat: load.requiresHazmat,
+          requiresLiftgate: load.requiresLiftgate,
+          maxVehicleLength: load.maxVehicleLength,
+          temperatureMin: load.temperatureMin,
+          temperatureMax: load.temperatureMax,
         },
         timestamp: new Date().toISOString(),
       }).catch(() => {});
@@ -375,6 +429,11 @@ export class LoadService {
       'rateNegotiable',
       'rate',
       'rateType',
+      'requiresHazmat',
+      'requiresLiftgate',
+      'maxVehicleLength',
+      'temperatureMin',
+      'temperatureMax',
     ] as const;
 
     for (const field of updatableFields) {
@@ -612,7 +671,7 @@ export class LoadService {
   // ---------------------------------------------------------------------------
   // GET SUMMARY (aggregated stats)
   // ---------------------------------------------------------------------------
-  static async getSummary(orgId: string): Promise<any> {
+  static async getSummary(orgId: string, userId?: string, role?: string): Promise<any> {
     if (!orgId) {
       return {
         total: 0,
@@ -624,13 +683,19 @@ export class LoadService {
       };
     }
 
+    const match: Record<string, any> = {};
+    if (role === 'broker') {
+      match.orgId = orgId;
+    } else if (role === 'carrier' || role === 'independent_driver') {
+      match.$or = [{ orgId: orgId }, { assignedDriverId: userId }];
+    } else {
+      match.orgId = orgId;
+    }
+
     const [counts, revenue] = await Promise.all([
+      LoadModel.aggregate([{ $match: match }, { $group: { _id: '$status', count: { $sum: 1 } } }]),
       LoadModel.aggregate([
-        { $match: { orgId: orgId } },
-        { $group: { _id: '$status', count: { $sum: 1 } } },
-      ]),
-      LoadModel.aggregate([
-        { $match: { orgId: orgId, status: 'delivered' } },
+        { $match: { ...match, status: 'delivered' } },
         { $group: { _id: null, total: { $sum: '$rate' } } },
       ]),
     ]);

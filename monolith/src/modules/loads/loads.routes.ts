@@ -10,18 +10,18 @@ loadRoutes.use(verifyJWT);
 // Broker only: create loads
 loadRoutes.post('/', checkRole(['broker']), LoadsController.createLoad);
 
-// Broker + Carrier (with loads.view permission): list own loads
+// Broker + Carrier + Independent Driver: list own loads
 loadRoutes.get(
   '/',
-  checkRole(['broker', 'carrier']),
+  checkRole(['broker', 'carrier', 'independent_driver']),
   checkPermission('loads.view'),
   LoadsController.listLoads,
 );
 
-// Broker + Carrier (with loads.view permission): summary
+// Broker + Carrier + Independent Driver: summary
 loadRoutes.get(
   '/summary',
-  checkRole(['broker', 'carrier']),
+  checkRole(['broker', 'carrier', 'independent_driver']),
   checkPermission('loads.view'),
   LoadsController.getSummary,
 );
@@ -29,8 +29,8 @@ loadRoutes.get(
 // Load templates (broker only)
 loadRoutes.get('/templates', checkRole(['broker']), LoadsController.listTemplates);
 
-// Broker only: get individual load (scoped by orgId)
-loadRoutes.get('/:id', checkRole(['broker']), LoadsController.getLoad);
+// Broker + Carrier + Independent Driver: get individual load
+loadRoutes.get('/:id', checkRole(['broker', 'carrier', 'independent_driver']), LoadsController.getLoad);
 
 // Broker only: edit load
 loadRoutes.patch('/:id', checkRole(['broker']), LoadsController.updateLoad);

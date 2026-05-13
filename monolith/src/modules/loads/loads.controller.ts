@@ -27,7 +27,9 @@ export class LoadsController {
   static async listLoads(req: Request, res: Response, next: NextFunction) {
     try {
       const companyId = req.auth!.companyId || '';
-      const result = await LoadService.listLoads(companyId, req.query as any);
+      const userId = req.auth!.userId;
+      const role = req.auth!.role;
+      const result = await LoadService.listLoads(companyId, req.query as any, userId, role);
       const body: ApiResponse = { success: true, data: result };
       res.status(200).json(body);
     } catch (err) {
@@ -41,7 +43,9 @@ export class LoadsController {
   static async getLoad(req: Request, res: Response, next: NextFunction) {
     try {
       const companyId = req.auth!.companyId || '';
-      const load = await LoadService.getLoadById(req.params.id, companyId);
+      const userId = req.auth!.userId;
+      const role = req.auth!.role;
+      const load = await LoadService.getLoadById(req.params.id, companyId, userId, role);
       const body: ApiResponse = { success: true, data: load };
       res.status(200).json(body);
     } catch (err) {
@@ -373,7 +377,9 @@ export class LoadsController {
   static async getSummary(req: Request, res: Response, next: NextFunction) {
     try {
       const companyId = req.auth!.companyId || '';
-      const summary = await LoadService.getSummary(companyId);
+      const userId = req.auth!.userId;
+      const role = req.auth!.role;
+      const summary = await LoadService.getSummary(companyId, userId, role);
       const body: ApiResponse = { success: true, data: summary };
       res.status(200).json(body);
     } catch (err) {

@@ -26,11 +26,21 @@ export interface CreateLoadDTO {
   rateNegotiable?: boolean;
   requireVerifiedCarrier?: boolean;
   internalNotes?: string;
+  requiresHazmat?: boolean;
+  requiresLiftgate?: boolean;
+  maxVehicleLength?: number | null;
+  temperatureMin?: number | null;
+  temperatureMax?: number | null;
 }
 
 export type UpdateLoadDTO = Partial<Omit<CreateLoadDTO, 'rate' | 'rateType'>> & {
   rate?: number;
   rateType?: string;
+  requiresHazmat?: boolean;
+  requiresLiftgate?: boolean;
+  maxVehicleLength?: number | null;
+  temperatureMin?: number | null;
+  temperatureMax?: number | null;
 };
 
 export interface LoadFilters {
@@ -98,4 +108,26 @@ export interface PreferredLaneDTO {
   maxDistance?: number;
   truckTypes?: string[];
   alertEnabled?: boolean;
+}
+
+export interface MatchingTruckResult {
+  truckId: string;
+  plateNumber: string;
+  truckType: string;
+  carrierOrgId: string;
+  driverId: string;
+  distance: number;
+  matchScore: number;
+  specs: {
+    maxWeight: number | null;
+    length: number | null;
+    hasLiftgate: boolean;
+    isHazmatCertified: boolean;
+  };
+  currentLocation: {
+    city: string;
+    state: string;
+    lat: number;
+    lng: number;
+  } | null;
 }

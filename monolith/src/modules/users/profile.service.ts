@@ -158,9 +158,22 @@ export class ProfileService {
   }
 
   static async createBusinessProfile(userId: string, dto: BusinessProfileDTO) {
-    const profile = await ProfileModel.findOne({ userId });
+    let profile = await ProfileModel.findOne({ userId });
+    
     if (!profile) {
-      throw AppError.notFound('Profile', userId);
+      // Self-healing: Create missing profile if it doesn't exist
+      const user = await UserModel.findById(userId);
+      if (!user) {
+        throw AppError.notFound('User', userId);
+      }
+      profile = await ProfileService.createProfile(
+        userId,
+        undefined,
+        user.email,
+        user.firstName,
+        user.lastName,
+        user.role,
+      );
     }
 
     const org = await OrganizationModel.findOneAndUpdate(

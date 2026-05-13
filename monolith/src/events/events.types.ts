@@ -39,6 +39,11 @@ export interface LoadPostedEvent extends BaseDomainEvent {
     weight: number;
     pickupDate: string;
     requireVerifiedCarrier: boolean;
+    requiresHazmat: boolean;
+    requiresLiftgate: boolean;
+    maxVehicleLength: number | null;
+    temperatureMin: number | null;
+    temperatureMax: number | null;
   };
 }
 

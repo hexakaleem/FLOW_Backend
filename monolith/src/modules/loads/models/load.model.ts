@@ -52,6 +52,9 @@ export interface ILoad extends Document {
   specialRequirements: string | null;
   isPublic: boolean;
   requireVerifiedCarrier: boolean;
+  requiresHazmat: boolean;
+  requiresLiftgate: boolean;
+  maxVehicleLength: number | null;
   internalNotes: string | null;
   status: LoadStatus;
   statusHistory: Array<{
@@ -130,6 +133,9 @@ const loadSchema = new Schema<ILoad>(
     specialRequirements: { type: String, default: null },
     isPublic: { type: Boolean, default: true },
     requireVerifiedCarrier: { type: Boolean, default: false },
+    requiresHazmat: { type: Boolean, default: false },
+    requiresLiftgate: { type: Boolean, default: false },
+    maxVehicleLength: { type: Number, default: null },
     internalNotes: { type: String, default: null },
     status: { type: String, default: 'draft', enum: LOAD_STATUSES },
     statusHistory: {
