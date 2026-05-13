@@ -36,6 +36,8 @@ export const ONBOARDING_ROUTES = new Set([
   '/onboarding/driver',
   '/onboarding/carrier',
   '/onboarding/broker',
+  '/fleet',
+  '/documents',
   '/me',
   '/logout',
 ]);
