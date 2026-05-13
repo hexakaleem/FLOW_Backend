@@ -12,9 +12,14 @@ router.get('/trucks/:id', authenticate, requirePermission('fleet:read'), forward
 router.patch('/trucks/:id', authenticate, requirePermission('fleet:write'), forwardToMonolith);
 router.delete('/trucks/:id', authenticate, requirePermission('fleet:delete'), forwardToMonolith);
 
-// VIN decode
 router.post(
   '/trucks/:id/vin-decode',
+  authenticate,
+  requirePermission('fleet:write'),
+  forwardToMonolith,
+);
+router.get(
+  '/vin-decode/:vin',
   authenticate,
   requirePermission('fleet:write'),
   forwardToMonolith,
