@@ -36,20 +36,34 @@ export class MarketplaceService {
       query.requireVerifiedCarrier = false;
     }
 
-    if (filters.originState) {
-      query['origin.state'] = filters.originState.toUpperCase();
+    if (filters.originLat !== undefined && filters.originLng !== undefined && filters.originRadius !== undefined) {
+      query['origin.coordinates'] = {
+        $geoWithin: {
+          $centerSphere: [[filters.originLng, filters.originLat], filters.originRadius / 3963.2],
+        },
+      };
+    } else {
+      if (filters.originState) {
+        query['origin.state'] = filters.originState.toUpperCase();
+      }
+      if (filters.originCity) {
+        query['origin.city'] = { $regex: filters.originCity, $options: 'i' };
+      }
     }
 
-    if (filters.originCity) {
-      query['origin.city'] = { $regex: filters.originCity, $options: 'i' };
-    }
-
-    if (filters.destState) {
-      query['destination.state'] = filters.destState.toUpperCase();
-    }
-
-    if (filters.destCity) {
-      query['destination.city'] = { $regex: filters.destCity, $options: 'i' };
+    if (filters.destLat !== undefined && filters.destLng !== undefined && filters.destRadius !== undefined) {
+      query['destination.coordinates'] = {
+        $geoWithin: {
+          $centerSphere: [[filters.destLng, filters.destLat], filters.destRadius / 3963.2],
+        },
+      };
+    } else {
+      if (filters.destState) {
+        query['destination.state'] = filters.destState.toUpperCase();
+      }
+      if (filters.destCity) {
+        query['destination.city'] = { $regex: filters.destCity, $options: 'i' };
+      }
     }
 
     if (filters.truckType) {

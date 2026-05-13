@@ -112,6 +112,7 @@ export class LoadService {
         zip: dto.origin.zip,
         lat: originCoords.lat,
         lng: originCoords.lng,
+        coordinates: [originCoords.lng, originCoords.lat],
         contactName: dto.origin.contactName,
         contactPhone: dto.origin.contactPhone,
       },
@@ -122,6 +123,7 @@ export class LoadService {
         zip: dto.destination.zip,
         lat: destCoords.lat,
         lng: destCoords.lng,
+        coordinates: [destCoords.lng, destCoords.lat],
         contactName: dto.destination.contactName,
         contactPhone: dto.destination.contactPhone,
       },
@@ -431,12 +433,20 @@ export class LoadService {
     }
 
     if (dto.origin) {
+      const oldOrigin = { ...load.origin };
       load.origin.address = dto.origin.address ?? load.origin.address;
       load.origin.city = dto.origin.city ?? load.origin.city;
       load.origin.state = dto.origin.state ?? load.origin.state;
       load.origin.zip = dto.origin.zip ?? load.origin.zip;
       load.origin.contactName = dto.origin.contactName ?? load.origin.contactName;
       load.origin.contactPhone = dto.origin.contactPhone ?? load.origin.contactPhone;
+
+      if (dto.origin.address || dto.origin.city || dto.origin.state) {
+        const coords = await geocodeAddress(load.origin.address, load.origin.city, load.origin.state);
+        load.origin.lat = coords.lat;
+        load.origin.lng = coords.lng;
+        load.origin.coordinates = [coords.lng, coords.lat];
+      }
     }
 
     if (dto.destination) {
@@ -446,6 +456,22 @@ export class LoadService {
       load.destination.zip = dto.destination.zip ?? load.destination.zip;
       load.destination.contactName = dto.destination.contactName ?? load.destination.contactName;
       load.destination.contactPhone = dto.destination.contactPhone ?? load.destination.contactPhone;
+
+      if (dto.destination.address || dto.destination.city || dto.destination.state) {
+        const coords = await geocodeAddress(load.destination.address, load.destination.city, load.destination.state);
+        load.destination.lat = coords.lat;
+        load.destination.lng = coords.lng;
+        load.destination.coordinates = [coords.lng, coords.lat];
+      }
+    }
+
+    if (dto.origin || dto.destination) {
+      load.estimatedDistance = haversineDistance(
+        load.origin.lat,
+        load.origin.lng,
+        load.destination.lat,
+        load.destination.lng,
+      );
     }
 
     await load.save();

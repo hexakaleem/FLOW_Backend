@@ -59,8 +59,14 @@ export interface LoadFilters {
 export interface MarketplaceFilters {
   originCity?: string;
   originState?: string;
+  originLat?: number;
+  originLng?: number;
+  originRadius?: number;
   destCity?: string;
   destState?: string;
+  destLat?: number;
+  destLng?: number;
+  destRadius?: number;
   truckType?: string;
   minRate?: number;
   maxRate?: number;

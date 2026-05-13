@@ -23,6 +23,7 @@ export interface ILoad extends Document {
     zip: string;
     lat: number;
     lng: number;
+    coordinates?: [number, number];
     contactName: string;
     contactPhone: string;
   };
@@ -33,6 +34,7 @@ export interface ILoad extends Document {
     zip: string;
     lat: number;
     lng: number;
+    coordinates?: [number, number];
     contactName: string;
     contactPhone: string;
   };
@@ -83,6 +85,7 @@ const loadAddressSchema = new Schema(
     zip: { type: String, required: true },
     lat: { type: Number, required: true },
     lng: { type: Number, required: true },
+    coordinates: { type: [Number], index: '2dsphere' },
     contactName: { type: String, required: true },
     contactPhone: { type: String, required: true },
   },
