@@ -371,10 +371,10 @@ export class BookingService {
       load.status = 'posted';
       const truckIdToRelease = load.assignedTruckId?.toString();
       
-      load.assignedTruckId = undefined;
-      load.assignedDriverId = undefined;
-      load.assignedAt = undefined;
-      load.confirmedBookingId = undefined;
+      load.assignedTruckId = null as any;
+      load.assignedDriverId = null as any;
+      load.assignedAt = null as any;
+      load.confirmedBookingId = null as any;
 
       load.statusHistory.push({
         status: 'posted',
