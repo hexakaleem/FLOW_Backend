@@ -4,9 +4,11 @@ import { config } from '../config';
 
 type UserContext = {
   userId: string;
-  orgId: string;
+  companyId: string;
   role: string;
   verified: boolean;
+  isOnboardingComplete: boolean;
+  permissions?: string[];
 };
 
 const http: AxiosInstance = axios.create({
@@ -26,9 +28,13 @@ function buildHeaders(req: Request): Record<string, string> {
   const user = (req as unknown as { user?: UserContext }).user;
   if (user) {
     headers['X-User-Id'] = user.userId;
-    headers['X-User-Org-Id'] = user.orgId;
+    headers['X-User-Org-Id'] = user.companyId;
     headers['X-User-Role'] = user.role;
     headers['X-User-Verified'] = String(!!user.verified);
+    headers['X-User-Onboarding-Complete'] = String(!!user.isOnboardingComplete);
+    if (user.permissions) {
+      headers['X-User-Permissions'] = user.permissions.join(',');
+    }
   }
 
   // Forward the original Authorization header so the monolith's verifyJWT

@@ -25,40 +25,58 @@ declare global {
  * Must be used on ALL protected routes EXCEPT auth routes (login, register, etc.)
  */
 export function verifyJWT(req: Request, _res: Response, next: NextFunction): void {
-  // 1. Allow internal requests from Gateway using the internal API key
   const internalKey = req.headers['x-internal-key'];
-  if (internalKey === config.internalApiKey) {
+  const isInternal = internalKey === config.internalApiKey;
+
+  // 1. Internal requests: If X-Internal-Key is present and valid, trust the X-User-* headers
+  if (isInternal) {
+    const userId = req.headers['x-user-id'] as string | undefined;
+    const userRole = req.headers['x-user-role'] as string | undefined;
+
+    if (userId && userRole) {
+      req.auth = {
+        userId,
+        role: userRole as Role,
+        companyId: (req.headers['x-user-org-id'] as string) || null,
+        permissions: (req.headers['x-user-permissions'] as string)?.split(',') || [],
+        verified: req.headers['x-user-verified'] === 'true',
+        isOnboardingComplete: req.headers['x-user-onboarding-complete'] === 'true',
+      };
+      return next();
+    }
+    // If it's internal but no user headers, it might be a truly internal service call (allow pass-through)
     return next();
   }
 
+  // 2. Direct requests: Try to verify the JWT from the Authorization header
   const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    throw AppError.unauthorized('Missing or invalid Authorization header');
-  }
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const token = authHeader.replace('Bearer ', '');
+    try {
+      const claims = TokenService.verifyAccessToken(token);
 
-  const token = authHeader.replace('Bearer ', '');
+      if (TokenService.isTokenBlacklisted(token)) {
+        throw AppError.unauthorized('Token has been revoked');
+      }
 
-  try {
-    const claims = TokenService.verifyAccessToken(token);
+      req.auth = {
+        userId: claims.userId,
+        role: claims.role as Role,
+        companyId: claims.companyId || null,
+        permissions: claims.permissions || [],
+        verified: claims.verified || false,
+        isOnboardingComplete: claims.isOnboardingComplete || false,
+      };
 
-    if (TokenService.isTokenBlacklisted(token)) {
-      throw AppError.unauthorized('Token has been revoked');
+      return next();
+    } catch (err: any) {
+      if (err instanceof AppError) throw err;
+      throw AppError.unauthorized(err?.message || 'Invalid token');
     }
-
-    req.auth = {
-      userId: claims.userId,
-      role: claims.role as Role,
-      companyId: claims.companyId || null,
-      permissions: claims.permissions || [],
-      verified: claims.verified || false,
-      isOnboardingComplete: claims.isOnboardingComplete || false,
-    };
-
-    next();
-  } catch (err: any) {
-    if (err instanceof AppError) throw err;
-    throw AppError.unauthorized(err?.message || 'Invalid token');
   }
+
+  // 3. No valid auth context found
+  throw AppError.unauthorized('Missing or invalid Authorization header');
 }
 
 /**
@@ -90,8 +108,12 @@ export function checkPermission(requiredPermission: string) {
       throw AppError.unauthorized('Authentication required');
     }
 
-    // Carrier owner and admin have full permissions implicitly
-    if (req.auth.role === ROLES.CARRIER || req.auth.role === ROLES.ADMIN) {
+    // Carrier owner, Admin, and Independent Driver have full permissions implicitly
+    if (
+      req.auth.role === ROLES.CARRIER ||
+      req.auth.role === ROLES.ADMIN ||
+      req.auth.role === ROLES.INDEPENDENT_DRIVER
+    ) {
       return next();
     }
 

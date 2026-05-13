@@ -33,6 +33,9 @@ export const ONBOARDING_ROUTES = new Set([
   '/onboarding/business',
   '/onboarding/stripe',
   '/onboarding/prefs',
+  '/onboarding/driver',
+  '/onboarding/carrier',
+  '/onboarding/broker',
   '/me',
   '/logout',
 ]);
@@ -87,12 +90,15 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
 
     req.user = claims;
 
-    if (!claims.isOnboardingComplete && !isPathInSet(req.path, ONBOARDING_ROUTES)) {
+    const isBusinessProfileRoute = /\/[a-f0-9-]+\/business-profile/.test(req.path);
+    const isAllowedDuringOnboarding = isPathInSet(req.path, ONBOARDING_ROUTES) || isBusinessProfileRoute;
+
+    if (!claims.isOnboardingComplete && !isAllowedDuringOnboarding) {
       res.status(403).json({
         success: false,
         error: {
           code: 'ONBOARDING_REQUIRED',
-          message: 'Complete onboarding before accessing this resource',
+          message: 'Please complete your onboarding profile to access this feature',
         },
       });
       return;
@@ -140,18 +146,23 @@ export function requirePermission(permission: string) {
     }
 
     try {
-      const userId = req.user.userId;
-      let permissions: string[];
+      // 1. Try to use permissions already in the JWT claims
+      let permissions = req.user.permissions || [];
 
-      const cached = permissionsCache.get(userId);
-      if (cached && cached.expiresAt > Date.now()) {
-        permissions = cached.permissions;
-      } else {
-        permissions = await authProvider.getPermissions(userId);
-        permissionsCache.set(userId, { permissions, expiresAt: Date.now() + PERMISSIONS_TTL_MS });
+      // 2. If not in JWT or empty, try the cache or fetch from monolith
+      if (permissions.length === 0) {
+        const userId = req.user.userId;
+        const cached = permissionsCache.get(userId);
+        if (cached && cached.expiresAt > Date.now()) {
+          permissions = cached.permissions;
+        } else {
+          permissions = await authProvider.getPermissions(userId);
+          permissionsCache.set(userId, { permissions, expiresAt: Date.now() + PERMISSIONS_TTL_MS });
+        }
       }
 
       if (!permissions.includes(permission)) {
+        console.warn(`[GATEWAY] Permission denied: '${permission}' for user ${req.user.userId}`);
         res.status(403).json({
           success: false,
           error: {

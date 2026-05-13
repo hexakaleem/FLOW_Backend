@@ -19,22 +19,25 @@ const CARRIER_SYSTEM_ROLES: Record<string, { name: string; permissions: string[]
   dispatcher: {
     name: 'Dispatcher',
     permissions: [
-      PERMISSIONS.LOADS_VIEW,
-      PERMISSIONS.LOADS_BOOK,
-      PERMISSIONS.LOADS_CANCEL,
-      PERMISSIONS.FLEET_VIEW,
+      PERMISSIONS.LOAD_READ,
+      PERMISSIONS.LOAD_BOOK,
+      PERMISSIONS.LOAD_CANCEL,
+      PERMISSIONS.LOAD_UPDATE,
+      PERMISSIONS.FLEET_READ,
       PERMISSIONS.FLEET_ASSIGN_DRIVERS,
-      PERMISSIONS.DOCUMENTS_VIEW,
+      PERMISSIONS.DOCUMENTS_READ,
       PERMISSIONS.DOCUMENTS_UPLOAD,
+      PERMISSIONS.MARKETPLACE_READ,
     ],
   },
   driver: {
     name: 'Driver',
     permissions: [
-      PERMISSIONS.LOADS_VIEW,
-      PERMISSIONS.FLEET_VIEW,
-      PERMISSIONS.DOCUMENTS_VIEW,
+      PERMISSIONS.LOAD_READ,
+      PERMISSIONS.FLEET_READ,
+      PERMISSIONS.DOCUMENTS_READ,
       PERMISSIONS.DOCUMENTS_UPLOAD,
+      PERMISSIONS.MARKETPLACE_READ,
     ],
   },
 };
@@ -85,13 +88,9 @@ export class ProfileService {
 
     // Map system-wide role to company-level role name
     const companyRoleName =
-      role === 'carrier'
+      role === 'carrier' || role === 'independent_driver'
         ? 'Owner'
-        : role === 'company_driver'
-          ? 'Driver'
-          : role === 'independent_driver'
-            ? 'Driver'
-            : 'Driver';
+        : 'Driver';
 
     const assignedRole = await RoleModel.findOne({
       orgId: effectiveOrgId,
@@ -209,21 +208,29 @@ export class ProfileService {
       case 'admin':
         return Object.values(PERMISSIONS);
       case 'broker':
-        return [PERMISSIONS.LOADS_VIEW, PERMISSIONS.DOCUMENTS_VIEW, PERMISSIONS.DOCUMENTS_UPLOAD];
+        return [
+          PERMISSIONS.LOAD_CREATE,
+          PERMISSIONS.LOAD_READ,
+          PERMISSIONS.LOAD_UPDATE,
+          PERMISSIONS.LOAD_CANCEL,
+          PERMISSIONS.DOCUMENTS_READ,
+          PERMISSIONS.DOCUMENTS_UPLOAD,
+        ];
       case 'independent_driver':
         return [
-          PERMISSIONS.LOADS_VIEW,
-          PERMISSIONS.LOADS_BOOK,
-          PERMISSIONS.LOADS_CANCEL,
-          PERMISSIONS.FLEET_VIEW,
-          PERMISSIONS.DOCUMENTS_VIEW,
+          PERMISSIONS.LOAD_READ,
+          PERMISSIONS.LOAD_BOOK,
+          PERMISSIONS.LOAD_CANCEL,
+          PERMISSIONS.FLEET_READ,
+          PERMISSIONS.MARKETPLACE_READ,
+          PERMISSIONS.DOCUMENTS_READ,
           PERMISSIONS.DOCUMENTS_UPLOAD,
         ];
       case 'company_driver':
         return [
-          PERMISSIONS.LOADS_VIEW,
-          PERMISSIONS.FLEET_VIEW,
-          PERMISSIONS.DOCUMENTS_VIEW,
+          PERMISSIONS.LOAD_READ,
+          PERMISSIONS.FLEET_READ,
+          PERMISSIONS.DOCUMENTS_READ,
           PERMISSIONS.DOCUMENTS_UPLOAD,
         ];
       default:

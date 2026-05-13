@@ -25,7 +25,7 @@ const upload = multer({
 router.post(
   '/upload',
   authenticate,
-  requirePermission('documents.upload'),
+  requirePermission('documents:upload'),
   upload.single('file'),
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
@@ -64,9 +64,10 @@ router.post(
       };
       if (user) {
         headers['X-User-Id'] = user.userId;
-        headers['X-User-Org-Id'] = user.orgId || '';
+        headers['X-User-Org-Id'] = user.companyId || '';
         headers['X-User-Role'] = user.role;
         headers['X-User-Verified'] = String(!!user.verified);
+        headers['X-User-Onboarding-Complete'] = String(!!user.isOnboardingComplete);
       }
 
       const response = await axios.post(
@@ -88,9 +89,9 @@ router.post(
 );
 
 // Other document endpoints — standard JSON proxy
-router.get('/', authenticate, requirePermission('documents.view'), forwardToMonolith);
-router.get('/:id', authenticate, requirePermission('documents.view'), forwardToMonolith);
-router.delete('/:id', authenticate, requirePermission('documents.upload'), forwardToMonolith);
-router.patch('/:id/status', authenticate, requirePermission('documents.upload'), forwardToMonolith);
+router.get('/', authenticate, requirePermission('documents:read'), forwardToMonolith);
+router.get('/:id', authenticate, requirePermission('documents:read'), forwardToMonolith);
+router.delete('/:id', authenticate, requirePermission('documents:upload'), forwardToMonolith);
+router.patch('/:id/status', authenticate, requirePermission('documents:upload'), forwardToMonolith);
 
 export { router as documentRoutes };

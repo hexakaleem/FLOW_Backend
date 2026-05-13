@@ -52,6 +52,20 @@ export class AuthService {
       status: 'pending_onboarding',
     });
 
+    // Create profile and organization for the user
+    try {
+      await ProfileService.createProfile(
+        user._id.toString(),
+        undefined,
+        user.email,
+        dto.firstName,
+        dto.lastName,
+        dto.role,
+      );
+    } catch (e: any) {
+      console.error('Profile creation during registration failed:', e?.message || e);
+    }
+
     await sendEmail('welcome', user.email, {
       firstName: user.firstName,
       verifyToken: emailVerifyToken,
@@ -111,18 +125,13 @@ export class AuthService {
       // Profile might not exist yet — companyId stays null
     }
 
-    // Fetch permissions for carrier team members
-    if (
-      user.role === 'carrier' ||
-      user.role === 'company_driver' ||
-      user.role === 'independent_driver'
-    ) {
-      try {
-        permissions = await PermissionService.getPermissions(user._id.toString(), user.role);
-      } catch (e: any) {
-        console.error('Permission fetch during login failed:', e?.message || e);
-        // Fall back to empty permissions
-      }
+    // Fetch permissions for the user (all roles)
+    try {
+      permissions = await PermissionService.getPermissions(user._id.toString(), user.role);
+    } catch (e: any) {
+      console.error('Permission fetch during login failed:', e?.message || e);
+      // Fall back to empty permissions if fetch fails
+      permissions = [];
     }
 
     const accessToken = TokenService.signAccessToken({
@@ -194,18 +203,12 @@ export class AuthService {
       // ignore
     }
 
-    // Fetch permissions for carrier team members
-    if (
-      user.role === 'carrier' ||
-      user.role === 'company_driver' ||
-      user.role === 'independent_driver'
-    ) {
-      try {
-        permissions = await PermissionService.getPermissions(user._id.toString(), user.role);
-      } catch (e: any) {
-        console.error('Permission fetch during refresh failed:', e?.message || e);
-        // Fall back to empty permissions
-      }
+    // Fetch permissions for the user (all roles)
+    try {
+      permissions = await PermissionService.getPermissions(user._id.toString(), user.role);
+    } catch (e: any) {
+      console.error('Permission fetch during refresh failed:', e?.message || e);
+      permissions = [];
     }
 
     const accessToken = TokenService.signAccessToken({
@@ -398,15 +401,38 @@ export class AuthService {
 
     const claims = TokenService.verifyAccessToken(token);
 
-    if (!claims.companyId) {
+    // Refresh claims from DB so the gateway always has up-to-date state
+    try {
+      const user = await UserModel.findById(claims.userId).select(
+        'emailVerified isOnboardingComplete identityStatus stripeAccountStatus',
+      );
+      if (user) {
+        claims.verified = user.emailVerified;
+        claims.isOnboardingComplete = user.isOnboardingComplete;
+        claims.identityStatus = user.identityStatus;
+        claims.stripeConnected = user.stripeAccountStatus === 'connected';
+      }
+    } catch (e: any) {
+      console.error('User fetch during introspect failed:', e?.message || e);
+    }
+
+    if (!claims.companyId || !claims.permissions || claims.permissions.length === 0) {
       try {
-        const profile = await ProfileService.getProfile(claims.userId);
-        if (profile && (profile as any).orgId) {
-          (claims as any).companyId = (profile as any).orgId.toString();
+        if (!claims.companyId) {
+          const profile = await ProfileService.getProfile(claims.userId);
+          if (profile && (profile as any).orgId) {
+            (claims as any).companyId = (profile as any).orgId.toString();
+          }
+        }
+
+        if (!claims.permissions || claims.permissions.length === 0) {
+          (claims as any).permissions = await PermissionService.getPermissions(
+            claims.userId,
+            claims.role,
+          );
         }
       } catch (e: any) {
-        console.error('Profile fetch during introspect failed:', e?.message || e);
-        // Profile not found — companyId stays null
+        console.error('Context hydration during introspect failed:', e?.message || e);
       }
     }
 
@@ -437,17 +463,53 @@ export class AuthService {
 
     const user = await UserModel.findOneAndUpdate({ _id: userId }, update, { new: true });
     if (!user) throw new AppError(404, 'USER_NOT_FOUND', 'User not found');
-    return AuthService.finalizeOnboardingStep(user);
+
+    // Also update the Profile document
+    try {
+      const profileUpdate: Record<string, unknown> = {};
+      if (body.firstName) profileUpdate.firstName = body.firstName;
+      if (body.lastName) profileUpdate.lastName = body.lastName;
+      if (body.phone) profileUpdate.phone = body.phone;
+      if (Object.keys(profileUpdate).length > 0) {
+        await ProfileService.updateProfile(userId, profileUpdate as any);
+      }
+    } catch (e: any) {
+      console.error('Profile update during onboarding failed:', e?.message || e);
+    }
+
+    return AuthService.finalizeOnboardingStep(user, userId);
   }
 
-  static async completeBusinessOnboarding(userId: string, _body: Record<string, unknown>) {
+  static async completeBusinessOnboarding(userId: string, body: Record<string, unknown>) {
     const user = await UserModel.findOneAndUpdate(
       { _id: userId },
       { 'onboardingSteps.business': true },
       { new: true },
     );
     if (!user) throw new AppError(404, 'USER_NOT_FOUND', 'User not found');
-    return AuthService.finalizeOnboardingStep(user);
+
+    // Create/update the organization with business details
+    try {
+      const profile = await ProfileService.getProfile(userId);
+      if (profile) {
+        const orgUpdate: Record<string, unknown> = {};
+        if (body.companyName) orgUpdate['name'] = body.companyName;
+        if (body.mcNumber) orgUpdate['mcNumber'] = body.mcNumber;
+        if (body.dotNumber) orgUpdate['dotNumber'] = body.dotNumber;
+        if (body.address) orgUpdate['address'] = body.address;
+        if (Object.keys(orgUpdate).length > 0) {
+          const { OrganizationModel } = await import('../users/models/organization.model');
+          await OrganizationModel.findOneAndUpdate(
+            { _id: (profile as any).orgId },
+            { $set: orgUpdate },
+          );
+        }
+      }
+    } catch (e: any) {
+      console.error('Business profile update during onboarding failed:', e?.message || e);
+    }
+
+    return AuthService.finalizeOnboardingStep(user, userId);
   }
 
   static async completeStripeOnboarding(userId: string, body: Record<string, unknown>) {
@@ -458,7 +520,7 @@ export class AuthService {
     }
     const user = await UserModel.findOneAndUpdate({ _id: userId }, update, { new: true });
     if (!user) throw new AppError(404, 'USER_NOT_FOUND', 'User not found');
-    return AuthService.finalizeOnboardingStep(user);
+    return AuthService.finalizeOnboardingStep(user, userId);
   }
 
   static async completePreferenceOnboarding(userId: string, _body: Record<string, unknown>) {
@@ -468,28 +530,52 @@ export class AuthService {
       { new: true },
     );
     if (!user) throw new AppError(404, 'USER_NOT_FOUND', 'User not found');
-    return AuthService.finalizeOnboardingStep(user);
+    return AuthService.finalizeOnboardingStep(user, userId);
   }
 
-  private static async finalizeOnboardingStep(user: IUser) {
+  private static async finalizeOnboardingStep(user: IUser, userId: string) {
     const steps = user.onboardingSteps;
     const allStepsComplete = steps.profile && steps.business && steps.stripe && steps.preferences;
 
     if (allStepsComplete && !user.isOnboardingComplete) {
       await UserModel.updateOne(
         { _id: user._id },
-        {
-          isOnboardingComplete: true,
-          refreshTokenHash: null,
-          refreshTokenExpiresAt: null,
-        },
+        { isOnboardingComplete: true },
       );
       user.isOnboardingComplete = true;
+    }
+
+    // If onboarding just completed, issue a fresh JWT
+    let accessToken: string | undefined;
+    if (allStepsComplete) {
+      let companyId: string | null = null;
+      let permissions: string[] = [];
+      try {
+        const profile = await ProfileService.getProfile(userId);
+        if (profile && (profile as any).orgId) {
+          companyId = (profile as any).orgId.toString();
+        }
+      } catch { /* ignore */ }
+      try {
+        permissions = await PermissionService.getPermissions(userId, user.role);
+      } catch { /* ignore */ }
+
+      accessToken = TokenService.signAccessToken({
+        userId: user._id.toString(),
+        companyId,
+        permissions,
+        role: user.role,
+        verified: user.emailVerified,
+        isOnboardingComplete: true,
+        stripeConnected: user.stripeAccountStatus === 'connected',
+        identityStatus: user.identityStatus,
+      });
     }
 
     return {
       onboardingSteps: user.onboardingSteps,
       isOnboardingComplete: allStepsComplete || user.isOnboardingComplete,
+      accessToken,
     };
   }
 }
