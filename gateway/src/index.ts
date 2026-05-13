@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { config } from './config';
 import { apiLimiter } from './middleware/rateLimiter';
 import { mountRoutes } from './routes';
+import { forwardToMonolith } from './lib/proxy';
 
 const app = express();
 
@@ -15,7 +16,9 @@ app.use((_req: Request, res: Response, next: NextFunction) => {
 });
 app.use(apiLimiter);
 
-app.get("/health",(_r,rs)=>rs.json({status:"ok"})); mountRoutes(app);
+app.get("/health",(_r,rs)=>rs.json({status:"ok"})); 
+app.use('/uploads', forwardToMonolith);
+mountRoutes(app);
 
 app.use((_req: Request, res: Response) => {
   res.status(404).json({

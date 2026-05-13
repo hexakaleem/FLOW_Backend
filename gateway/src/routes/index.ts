@@ -12,6 +12,7 @@ import { reviewRoutes } from './reviews.routes';
 import { notificationRoutes } from './notifications.routes';
 import { ticketRoutes } from './tickets.routes';
 import { documentRoutes } from './documents.routes';
+import { adminRoutes } from './admin.routes';
 
 export function mountRoutes(app: Application): void {
   app.use('/api/auth', authRoutes);
@@ -27,4 +28,5 @@ export function mountRoutes(app: Application): void {
   app.use('/api/notifications', notificationRoutes);
   app.use('/api/tickets', ticketRoutes);
   app.use('/api/documents', documentRoutes);
+  app.use('/api/admin', adminRoutes);
 }

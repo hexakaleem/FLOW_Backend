@@ -357,7 +357,6 @@ export class AuthService {
   static async verifyIdentity(
     userId: string,
     files: { buffer: Buffer; mimetype: string }[],
-    verificationMethod: 'fmcsa' | 'manual' = 'fmcsa',
   ) {
     const user = await UserModel.findById(userId);
     if (!user) {
@@ -372,32 +371,10 @@ export class AuthService {
     );
 
     user.verificationDocuments = [...user.verificationDocuments, ...uploadResults];
-    user.verificationMethod = verificationMethod;
+    user.verificationMethod = 'manual';
     user.identityStatus = 'submitted';
     user.status = 'pending_verification';
     await user.save();
-
-    if (verificationMethod === 'fmcsa') {
-      const fmcsaApiKey = config.external.fmcsaApiKey;
-      if (fmcsaApiKey) {
-        try {
-          const fmcsaResponse = await axios.get('https://mobile.fmcsa.dot.gov/api/safer/verify', {
-            params: { api_key: fmcsaApiKey },
-          });
-          if (fmcsaResponse.status === 200) {
-            user.identityStatus = 'approved';
-            user.identityVerified = true;
-            user.status = 'active';
-          } else {
-            user.identityStatus = 'rejected';
-          }
-        } catch (e: any) {
-          console.error('FMCSA verification failed:', e?.message || e);
-          user.identityStatus = 'submitted';
-        }
-        await user.save();
-      }
-    }
 
     return {
       identityStatus: user.identityStatus,
