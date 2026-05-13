@@ -12,13 +12,13 @@ router.post('/accept-invite', forwardToMonolith);
 router.patch(
   '/members/:memberId',
   authenticate,
-  requirePermission('team:manage'),
+  requirePermission('team:write'),
   forwardToMonolith,
 );
 router.delete(
   '/members/:memberId',
   authenticate,
-  requirePermission('team:manage'),
+  requirePermission('team:write'),
   forwardToMonolith,
 );
 router.get('/roles', authenticate, requirePermission('team:read'), forwardToMonolith);
