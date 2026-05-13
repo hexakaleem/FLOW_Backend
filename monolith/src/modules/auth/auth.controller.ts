@@ -121,10 +121,8 @@ export class AuthController {
     try {
       const files = (req.files ?? []) as { buffer: Buffer; mimetype: string }[];
       const userId = req.auth!.userId;
-      const verificationMethod = (req.body.verificationMethod === 'manual' ? 'manual' : 'fmcsa') as
-        | 'fmcsa'
-        | 'manual';
-      const result = await AuthService.verifyIdentity(userId, files, verificationMethod);
+
+      const result = await AuthService.verifyIdentity(userId, files);
       const body: ApiResponse = { success: true, data: result };
       res.status(200).json(body);
     } catch (err) {
