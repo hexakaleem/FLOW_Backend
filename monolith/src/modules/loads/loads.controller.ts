@@ -1,10 +1,11 @@
 import { Request, Response, NextFunction } from 'express';
-import type { ApiResponse } from '@flow/shared';
+import type { ApiResponse, CreateLoadDTO } from '@flow/shared';
 import { LoadService } from './load.service';
 import { BookingService } from './booking.service';
 import { CounterOfferService } from './counter-offer.service';
 import { TruckRequestService } from './truck-request.service';
 import { MatchingService } from './matching.service';
+import { AiChatService } from './ai-chat.service';
 
 export class LoadsController {
   // ---------------------------------------------------------------------------
@@ -394,6 +395,133 @@ export class LoadsController {
       const load = await LoadService.getLoadById(req.params.id, companyId);
       const matches = await MatchingService.getMatchingTrucksForLoad(load as any);
       const body: ApiResponse = { success: true, data: { matches } };
+      res.status(200).json(body);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // AI CHAT — Start session
+  // ---------------------------------------------------------------------------
+  static async startAiChat(req: Request, res: Response, next: NextFunction) {
+    try {
+      const userId = req.auth!.userId;
+      const session = AiChatService.startSession(userId);
+      const firstQuestion = 'Hi! I\'ll help you create a load. Let\'s go step by step.\n\nWhat\'s a short title or reference for this load? (e.g., \'Produce to Dallas\')';
+      const body: ApiResponse = {
+        success: true,
+        data: {
+          sessionId: session.sessionId,
+          step: session.step,
+          totalSteps: 12,
+          isComplete: false,
+          message: firstQuestion,
+          collected: session.collected,
+        },
+      };
+      res.status(200).json(body);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // AI CHAT — Send message
+  // ---------------------------------------------------------------------------
+  static async sendAiChatMessage(req: Request, res: Response, next: NextFunction) {
+    try {
+      const userId = req.auth!.userId;
+      const { sessionId, message } = req.body;
+      const result = AiChatService.sendMessage(sessionId, userId, message);
+      const body: ApiResponse = { success: true, data: result };
+      res.status(200).json(body);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // AI CHAT — Confirm and create load
+  // ---------------------------------------------------------------------------
+  static async confirmAiLoad(req: Request, res: Response, next: NextFunction) {
+    try {
+      const userId = req.auth!.userId;
+      const companyId = req.auth!.companyId || '';
+      const { sessionId } = req.body;
+      const collected = AiChatService.confirmLoad(sessionId, userId);
+
+      // Merge with defaults for required fields not collected by AI
+      const loadInput: CreateLoadDTO = {
+        shipperName: '',
+        shipperPhone: '',
+        shipperEmail: '',
+        origin: {
+          address: '',
+          city: '',
+          state: '',
+          zip: '',
+          contactName: '',
+          contactPhone: '',
+          ...collected.origin,
+        },
+        destination: {
+          address: '',
+          city: '',
+          state: '',
+          zip: '',
+          contactName: '',
+          contactPhone: '',
+          ...collected.destination,
+        },
+        pickupDate: collected.pickupDate || new Date().toISOString().split('T')[0],
+        deliveryDate: collected.deliveryDate || '',
+        weight: collected.weight || 0,
+        truckType: collected.truckType || 'Flatbed',
+        rate: collected.rate || 0,
+        rateType: collected.rateType || 'flat',
+        commodity: collected.commodity || 'General Freight',
+        referenceNumber: collected.referenceNumber || null,
+        isPublic: true,
+        specialRequirements: collected.specialRequirements,
+        rateNegotiable: false,
+        requireVerifiedCarrier: false,
+        internalNotes: collected.internalNotes,
+        requiresHazmat: false,
+        requiresLiftgate: false,
+        maxVehicleLength: null,
+        temperatureMin: null,
+        temperatureMax: null,
+      };
+
+      const load = await LoadService.createLoad(companyId, userId, loadInput);
+      const body: ApiResponse = { success: true, data: load };
+      res.status(201).json(body);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // AI CHAT — Reset session
+  // ---------------------------------------------------------------------------
+  static async resetAiChat(req: Request, res: Response, next: NextFunction) {
+    try {
+      const userId = req.auth!.userId;
+      const { sessionId } = req.body;
+      const session = AiChatService.resetSession(sessionId, userId);
+      const firstQuestion = 'What\'s a short title or reference for this load? (e.g., \'Produce to Dallas\')';
+      const body: ApiResponse = {
+        success: true,
+        data: {
+          sessionId: session.sessionId,
+          step: session.step,
+          totalSteps: 12,
+          isComplete: false,
+          message: firstQuestion,
+          collected: session.collected,
+        },
+      };
       res.status(200).json(body);
     } catch (err) {
       next(err);

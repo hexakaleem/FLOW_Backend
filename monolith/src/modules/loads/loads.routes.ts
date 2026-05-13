@@ -108,3 +108,9 @@ loadRoutes.get(
   checkRole(['broker']),
   LoadsController.getMatchingTrucks,
 );
+
+// AI Chat Assistant (broker only)
+loadRoutes.post('/ai-chat/start', checkRole(['broker']), LoadsController.startAiChat);
+loadRoutes.post('/ai-chat/message', checkRole(['broker']), LoadsController.sendAiChatMessage);
+loadRoutes.post('/ai-chat/confirm', checkRole(['broker']), LoadsController.confirmAiLoad);
+loadRoutes.post('/ai-chat/reset', checkRole(['broker']), LoadsController.resetAiChat);
