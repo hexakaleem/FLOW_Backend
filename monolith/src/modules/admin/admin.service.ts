@@ -174,7 +174,24 @@ export class AdminService {
       throw AppError.notFound('User', userId);
     }
 
+    // 1. Delete from auth (this will invalidate login)
     await user.deleteOne();
+
+    // 2. Cleanup other modules (Monolith handles all DBs)
+    try {
+      const { ProfileModel } = await import('../users/models/profile.model');
+      const { MembershipModel } = await import('../users/models/membership.model');
+      
+      await Promise.all([
+        ProfileModel.deleteOne({ userId }),
+        MembershipModel.deleteMany({ userId }),
+      ]);
+      
+      console.log(`[ADMIN] Cleaned up profile and memberships for user ${userId}`);
+    } catch (e: any) {
+      console.error(`[ADMIN] Failed to cleanup user metadata for ${userId}:`, e.message);
+      // We don't throw here because the main user is already deleted
+    }
 
     return {
       success: true,

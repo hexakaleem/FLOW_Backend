@@ -89,7 +89,7 @@ export class AuthService {
           role: user.role,
         },
         timestamp: new Date().toISOString(),
-      }).catch(() => {});
+      }).catch(() => { });
     });
 
     return { userId: user._id.toString(), email: user.email, role: user.role };
@@ -496,7 +496,7 @@ export class AuthService {
         if (body.companyName) orgUpdate['name'] = body.companyName;
         if (body.mcNumber) orgUpdate['mcNumber'] = body.mcNumber;
         if (body.dotNumber) orgUpdate['dotNumber'] = body.dotNumber;
-        
+
         if (body.address) {
           const addr = body.address as any;
           orgUpdate['address'] = {
