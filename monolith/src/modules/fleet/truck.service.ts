@@ -82,7 +82,11 @@ export class TruckService {
   ) {
     const { cursorFilter, limit } = buildPaginationQuery(filters?.cursor, filters?.limit);
 
-    const query: Record<string, unknown> = { orgId, ...cursorFilter };
+    const query: Record<string, unknown> = { 
+      orgId, 
+      ...cursorFilter,
+      status: { $nin: ['removed', 'decommissioned'] } 
+    };
 
     if (filters?.status) {
       query.status = filters.status;
@@ -130,6 +134,7 @@ export class TruckService {
     if (dto.year !== undefined) truck.year = dto.year;
     if (dto.make !== undefined) truck.make = dto.make;
     if (dto.vehicleModel !== undefined) truck.vehicleModel = dto.vehicleModel;
+    if (dto.status !== undefined) truck.status = dto.status as any;
 
     if (dto.vin !== undefined) {
       truck.vin = dto.vin;
