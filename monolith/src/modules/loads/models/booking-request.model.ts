@@ -20,7 +20,7 @@ export interface IBookingRequest extends Document {
 
 const bookingRequestSchema = new Schema<IBookingRequest>(
   {
-    loadId: { type: String, required: true, index: true },
+    loadId: { type: String, required: true },
     carrierOrgId: { type: String, required: true },
     carrierUserId: { type: String, required: true, index: true },
     truckId: { type: String, required: true },

@@ -92,7 +92,7 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
 
     req.user = claims;
 
-    const isBusinessProfileRoute = /\/[a-f0-9-]+\/business-profile/.test(req.path);
+    const isBusinessProfileRoute = /.*\/[a-f0-9-]+\/business-profile/.test(req.path);
     const isAllowedDuringOnboarding = isPathInSet(req.path, ONBOARDING_ROUTES) || isBusinessProfileRoute;
 
     if (!claims.isOnboardingComplete && !isAllowedDuringOnboarding) {

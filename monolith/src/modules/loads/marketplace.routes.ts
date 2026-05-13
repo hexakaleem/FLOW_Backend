@@ -47,7 +47,14 @@ marketplaceRoutes.get(
   MarketplaceController.listPreferredLanes,
 );
 marketplaceRoutes.delete(
-  '/lanes/:id',
-  checkRole(['carrier', 'independent_driver']),
+  "/lanes/:id",
+  checkRole(["carrier", "independent_driver"]),
   MarketplaceController.deletePreferredLane,
+);
+
+// My Bookings: carrier and independent driver
+marketplaceRoutes.get(
+  "/bookings",
+  checkRole(["carrier", "independent_driver"]),
+  MarketplaceController.listMyBookings,
 );

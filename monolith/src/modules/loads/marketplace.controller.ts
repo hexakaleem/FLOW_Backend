@@ -97,4 +97,15 @@ export class MarketplaceController {
       next(err);
     }
   }
+
+  static async listMyBookings(req: Request, res: Response, next: NextFunction) {
+    try {
+      const orgId = req.auth!.companyId || "";
+      const bookings = await MarketplaceService.listMyBookings(orgId);
+      const body: ApiResponse = { success: true, data: bookings };
+      res.status(200).json(body);
+    } catch (err) {
+      next(err);
+    }
+  }
 }

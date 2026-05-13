@@ -32,5 +32,11 @@ router.delete(
   requirePermission('marketplace:write'),
   forwardToMonolith,
 );
+router.get(
+  '/bookings',
+  authenticate,
+  requirePermission('marketplace:read'),
+  forwardToMonolith,
+);
 
 export { router as marketplaceRoutes };

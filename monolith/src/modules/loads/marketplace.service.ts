@@ -1,13 +1,20 @@
-import { Types } from 'mongoose';
-import type { MarketplaceFilters, SavedSearchDTO, PreferredLaneDTO } from '@flow/shared';
-import { buildPaginationQuery } from '@flow/shared';
-import { AppError } from '../../lib/errors';
-import { sendEmail } from '../../lib/email';
-import { notificationQueue } from '../../queues/notification.queue';
-import { LoadModel, ILoad } from './models/load.model';
-import { SavedSearchModel, ISavedSearch } from './models/saved-search.model';
-import { PreferredLaneModel, IPreferredLane } from './models/preferred-lane.model';
-import { TruckService } from '../fleet';
+import { Types } from "mongoose";
+import type { MarketplaceFilters, SavedSearchDTO, PreferredLaneDTO } from "@flow/shared";
+import { buildPaginationQuery } from "@flow/shared";
+import { AppError } from "../../lib/errors";
+import { sendEmail } from "../../lib/email";
+import { notificationQueue } from "../../queues/notification.queue";
+import { LoadModel, ILoad } from "./models/load.model";
+import { SavedSearchModel, ISavedSearch } from "./models/saved-search.model";
+import {
+  PreferredLaneModel,
+  IPreferredLane,
+} from "./models/preferred-lane.model";
+import {
+  BookingRequestModel,
+  IBookingRequest,
+} from "./models/booking-request.model";
+import { TruckService } from "../fleet";
 
 export class MarketplaceService {
   static async searchLoads(
@@ -283,5 +290,38 @@ export class MarketplaceService {
         },
       }).catch(() => {});
     }
+  }
+
+  static async listMyBookings(orgId: string): Promise<any[]> {
+    // 1. Find bookings where the org is the carrier
+    const carrierBookings = await BookingRequestModel.find({ carrierOrgId: orgId })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // 2. Find loads owned by this org to find bookings made BY OTHERS on this org's loads (for Brokers)
+    const myLoads = await LoadModel.find({ orgId }).select('_id').lean();
+    const myLoadIds = myLoads.map(l => l._id.toString());
+    
+    const brokerBookings = await BookingRequestModel.find({ 
+      loadId: { $in: myLoadIds },
+      carrierOrgId: { $ne: orgId } // Don't duplicate if they booked their own load (not likely)
+    })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // Combine them
+    const allBookings = [...carrierBookings, ...brokerBookings];
+    if (allBookings.length === 0) return [];
+
+    const loadIds = [...new Set(allBookings.map((b) => b.loadId))];
+    const loads = await LoadModel.find({ _id: { $in: loadIds } }).lean();
+
+    return allBookings.map((b) => {
+      const load = loads.find((l) => l._id.toString() === b.loadId.toString());
+      return {
+        ...b,
+        loadDetails: load,
+      };
+    });
   }
 }

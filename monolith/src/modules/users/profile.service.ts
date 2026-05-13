@@ -123,9 +123,22 @@ export class ProfileService {
   }
 
   static async getProfile(userId: string) {
-    const profile = await ProfileModel.findOne({ userId });
+    let profile = await ProfileModel.findOne({ userId });
     if (!profile) {
-      throw AppError.notFound('Profile', userId);
+      // Self-healing: Create missing profile if it doesn't exist
+      const user = await UserModel.findById(userId);
+      if (user) {
+        profile = await ProfileService.createProfile(
+          userId,
+          undefined, // orgId will be created
+          user.email,
+          user.firstName,
+          user.lastName,
+          user.role,
+        );
+      } else {
+        throw AppError.notFound('Profile', userId);
+      }
     }
     return profile;
   }
@@ -146,13 +159,32 @@ export class ProfileService {
       }
     }
 
-    const profile = await ProfileModel.findOneAndUpdate(
+    let profile = await ProfileModel.findOneAndUpdate(
       { userId },
       { $set: update },
       { new: true, runValidators: true },
     );
     if (!profile) {
-      throw AppError.notFound('Profile', userId);
+      // Self-healing: Create missing profile if it doesn't exist
+      const user = await UserModel.findById(userId);
+      if (user) {
+        profile = await ProfileService.createProfile(
+          userId,
+          undefined, // orgId will be created
+          user.email,
+          user.firstName,
+          user.lastName,
+          user.role,
+        );
+        // Apply update to the newly created profile
+        profile = await ProfileModel.findOneAndUpdate(
+          { userId },
+          { $set: update },
+          { new: true, runValidators: true },
+        );
+      } else {
+        throw AppError.notFound('Profile', userId);
+      }
     }
     return profile;
   }
@@ -168,12 +200,17 @@ export class ProfileService {
       }
       profile = await ProfileService.createProfile(
         userId,
-        undefined,
+        undefined, // orgId will be created
         user.email,
         user.firstName,
         user.lastName,
         user.role,
       );
+    }
+
+    if (!profile.orgId) {
+       // Should not happen if createProfile works, but for safety:
+       throw AppError.badRequest('MISSING_ORG_ID', 'Profile has no associated organization');
     }
 
     const org = await OrganizationModel.findOneAndUpdate(
@@ -185,10 +222,16 @@ export class ProfileService {
           dotNumber: dto.dotNumber ?? null,
           scacCode: dto.scacCode ?? null,
           factoringCompany: dto.factoringCompany ?? null,
-          address: dto.address,
+          address: {
+            line1: dto.address.line1,
+            line2: dto.address.line2 || '',
+            city: dto.address.city,
+            state: dto.address.state,
+            zip: dto.address.zip,
+          },
         },
       },
-      { new: true },
+      { new: true, runValidators: true },
     );
 
     if (!org) {

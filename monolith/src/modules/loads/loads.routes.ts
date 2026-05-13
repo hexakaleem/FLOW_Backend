@@ -93,13 +93,13 @@ loadRoutes.post(
 // Truck requests
 loadRoutes.post('/:id/truck-request', checkRole(['broker']), LoadsController.createTruckRequest);
 loadRoutes.post(
-  '/:id/truck-request/:reqId/confirm',
-  checkRole(['carrier']),
+  "/:id/truck-request/:reqId/confirm",
+  checkRole(["carrier", "independent_driver"]),
   LoadsController.confirmTruckRequest,
 );
 loadRoutes.post(
-  '/:id/truck-request/:reqId/deny',
-  checkRole(['carrier']),
+  "/:id/truck-request/:reqId/deny",
+  checkRole(["carrier", "independent_driver"]),
   LoadsController.denyTruckRequest,
 );
 

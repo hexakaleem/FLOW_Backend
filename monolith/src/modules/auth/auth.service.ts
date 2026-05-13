@@ -491,17 +491,29 @@ export class AuthService {
     // Create/update the organization with business details
     try {
       const profile = await ProfileService.getProfile(userId);
-      if (profile) {
+      if (profile && (profile as any).orgId) {
         const orgUpdate: Record<string, unknown> = {};
         if (body.companyName) orgUpdate['name'] = body.companyName;
         if (body.mcNumber) orgUpdate['mcNumber'] = body.mcNumber;
         if (body.dotNumber) orgUpdate['dotNumber'] = body.dotNumber;
-        if (body.address) orgUpdate['address'] = body.address;
+        
+        if (body.address) {
+          const addr = body.address as any;
+          orgUpdate['address'] = {
+            line1: addr.line1 || '',
+            line2: addr.line2 || '',
+            city: addr.city || '',
+            state: addr.state || '',
+            zip: addr.zip || '',
+          };
+        }
+
         if (Object.keys(orgUpdate).length > 0) {
           const { OrganizationModel } = await import('../users/models/organization.model');
           await OrganizationModel.findOneAndUpdate(
             { _id: (profile as any).orgId },
             { $set: orgUpdate },
+            { runValidators: true }
           );
         }
       }
