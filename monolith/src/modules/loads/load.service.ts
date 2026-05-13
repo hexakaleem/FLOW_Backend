@@ -83,10 +83,15 @@ export class LoadService {
       );
     }
 
-    const [originCoords, destCoords] = await Promise.all([
-      geocodeAddress(dto.origin.address, dto.origin.city, dto.origin.state),
-      geocodeAddress(dto.destination.address, dto.destination.city, dto.destination.state),
-    ]);
+    const originCoords =
+      dto.origin.lat != null && dto.origin.lng != null
+        ? { lat: dto.origin.lat, lng: dto.origin.lng }
+        : await geocodeAddress(dto.origin.address, dto.origin.city, dto.origin.state);
+
+    const destCoords =
+      dto.destination.lat != null && dto.destination.lng != null
+        ? { lat: dto.destination.lat, lng: dto.destination.lng }
+        : await geocodeAddress(dto.destination.address, dto.destination.city, dto.destination.state);
 
     const estimatedDistance = haversineDistance(
       originCoords.lat,
