@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { TokenService } from '../modules/auth/token.service';
 import { AppError } from '../lib/errors';
+import { config } from '../config';
 import { ROLES, Role } from '@flow/shared';
 
 // Extend Express Request to carry auth context
@@ -24,6 +25,12 @@ declare global {
  * Must be used on ALL protected routes EXCEPT auth routes (login, register, etc.)
  */
 export function verifyJWT(req: Request, _res: Response, next: NextFunction): void {
+  // 1. Allow internal requests from Gateway using the internal API key
+  const internalKey = req.headers['x-internal-key'];
+  if (internalKey === config.internalApiKey) {
+    return next();
+  }
+
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     throw AppError.unauthorized('Missing or invalid Authorization header');
