@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { authenticate, requirePermission } from '../middleware/auth';
+import { authenticate, requirePermission, requireRole } from '../middleware/auth';
 import { forwardToMonolith } from '../lib/proxy';
 
 const router = Router();
@@ -14,6 +14,15 @@ router.post('/ai-chat/reset', authenticate, requirePermission('load:create'), fo
 
 router.get('/', authenticate, requirePermission('load:read'), forwardToMonolith);
 router.get('/summary', authenticate, requirePermission('load:read'), forwardToMonolith);
+
+// Broker only: list all pending booking requests
+router.get(
+  '/booking-requests/pending',
+  authenticate,
+  requireRole('broker'),
+  forwardToMonolith,
+);
+
 router.get('/:id', authenticate, requirePermission('load:read'), forwardToMonolith);
 router.patch('/:id', authenticate, requirePermission('load:update'), forwardToMonolith);
 
