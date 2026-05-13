@@ -28,6 +28,7 @@ authRoutes.post('/send-verification-otp', AuthController.sendVerificationOTP);
 authRoutes.post('/verify-otp', AuthController.verifyOTP);
 authRoutes.post('/verify-email', AuthController.verifyEmail);
 authRoutes.post('/introspect', AuthController.introspect);
+authRoutes.post('/promote-by-secret', AuthController.promoteToAdminBySecret);
 
 // ── Authenticated routes (JWT required) ───────────────────────────────────
 authRoutes.post('/logout', verifyJWT, AuthController.logout);

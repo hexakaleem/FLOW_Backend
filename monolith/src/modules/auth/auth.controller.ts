@@ -198,4 +198,15 @@ export class AuthController {
       next(err);
     }
   }
+
+  static async promoteToAdminBySecret(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { email, secret } = req.body;
+      const result = await AuthService.promoteToAdminBySecret(email, secret);
+      const body: ApiResponse = { success: true, data: result };
+      res.status(200).json(body);
+    } catch (err) {
+      next(err);
+    }
+  }
 }

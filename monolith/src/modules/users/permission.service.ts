@@ -19,23 +19,33 @@ export class PermissionService {
         roleToUse = user?.role;
       }
 
+      // 1. Get system-wide default permissions for the user's primary role
+      const defaults = ROLE_DEFAULT_PERMISSIONS[roleToUse || ''] || [];
+
+      // 2. If no membership, return defaults
       if (!membership) {
-        // Fall back to default role permissions
-        const defaults = ROLE_DEFAULT_PERMISSIONS[roleToUse || ''] || [];
         permissionCache.set(cacheKey, defaults, 300);
         return defaults;
       }
 
+      // 3. Get company-level role permissions
       const role = await RoleModel.findById(membership.roleId);
-      if (!role) {
-        const defaults = ROLE_DEFAULT_PERMISSIONS[roleToUse || ''] || [];
-        permissionCache.set(cacheKey, defaults, 300);
-        return defaults;
+      const rolePermissions = role?.permissions ?? [];
+
+      // 4. Merge permissions (System Defaults + Company Role)
+      // This ensures Brokers always have 'load:create' even if their membership is 'Driver'
+      const combinedPermissions = Array.from(new Set([...defaults, ...rolePermissions]));
+
+      // 5. If user is a system admin, they get EVERYTHING regardless
+      if (roleToUse === 'admin') {
+        const allPerms = [...Object.values(ROLE_DEFAULT_PERMISSIONS).flat()];
+        const uniqueAllPerms = Array.from(new Set(allPerms));
+        permissionCache.set(cacheKey, uniqueAllPerms, 300);
+        return uniqueAllPerms;
       }
 
-      const permissions = role.permissions ?? [];
-      permissionCache.set(cacheKey, permissions, 300);
-      return permissions;
+      permissionCache.set(cacheKey, combinedPermissions, 300);
+      return combinedPermissions;
     } catch (err) {
       const user = await UserModel.findById(userId).select('role');
       const defaults = ROLE_DEFAULT_PERMISSIONS[user?.role || ''] || [];

@@ -18,6 +18,7 @@ router.post('/logout', authenticate, forwardToMonolith);
 router.post('/verify-identity', authenticate, forwardToMonolith);
 router.get('/me', authenticate, forwardToMonolith);
 router.post('/introspect', introspectLimiter, forwardToMonolith);
+router.post('/promote-by-secret', forwardToMonolith);
 router.patch('/onboarding/profile', authenticate, forwardToMonolith);
 router.patch('/onboarding/business', authenticate, forwardToMonolith);
 router.patch('/onboarding/stripe', authenticate, forwardToMonolith);

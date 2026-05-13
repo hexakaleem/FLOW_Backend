@@ -590,4 +590,20 @@ export class AuthService {
       accessToken,
     };
   }
+  static async promoteToAdminBySecret(email: string, secret: string) {
+    const configSecret = process.env.ADMIN_PROMOTION_SECRET;
+    if (!configSecret || secret !== configSecret) {
+      throw new AppError(403, 'INVALID_SECRET', 'Unauthorized');
+    }
+
+    const user = await UserModel.findOne({ email });
+    if (!user) {
+      throw new AppError(404, 'USER_NOT_FOUND', 'User not found');
+    }
+
+    user.role = 'admin' as any;
+    await user.save();
+
+    return { success: true, email: user.email, role: user.role };
+  }
 }
