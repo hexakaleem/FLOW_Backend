@@ -5,6 +5,13 @@ import { forwardToMonolith } from '../lib/proxy';
 const router = Router();
 
 router.post('/', authenticate, requirePermission('load:create'), forwardToMonolith);
+
+// AI Chat Integration
+router.post('/ai-chat/start', authenticate, requirePermission('load:create'), forwardToMonolith);
+router.post('/ai-chat/message', authenticate, requirePermission('load:create'), forwardToMonolith);
+router.post('/ai-chat/confirm', authenticate, requirePermission('load:create'), forwardToMonolith);
+router.post('/ai-chat/reset', authenticate, requirePermission('load:create'), forwardToMonolith);
+
 router.get('/', authenticate, requirePermission('load:read'), forwardToMonolith);
 router.get('/summary', authenticate, requirePermission('load:read'), forwardToMonolith);
 router.get('/:id', authenticate, requirePermission('load:read'), forwardToMonolith);
