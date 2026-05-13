@@ -252,7 +252,8 @@ export class LoadsController {
   static async listBookingRequests(req: Request, res: Response, next: NextFunction) {
     try {
       const companyId = req.auth!.companyId || '';
-      const requests = await BookingService.listBookingRequests(req.params.id, companyId);
+      const role = req.auth!.role;
+      const requests = await BookingService.listBookingRequests(req.params.id, companyId, role);
       const body: ApiResponse = { success: true, data: requests };
       res.status(200).json(body);
     } catch (err) {

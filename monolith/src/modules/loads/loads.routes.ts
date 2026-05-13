@@ -42,8 +42,8 @@ loadRoutes.get('/:id', checkRole(['broker', 'carrier', 'independent_driver']), L
 // Broker only: edit load
 loadRoutes.patch('/:id', checkRole(['broker']), LoadsController.updateLoad);
 
-// Broker only: transition status
-loadRoutes.patch('/:id/status', checkRole(['broker']), LoadsController.transitionStatus);
+// Broker + Carrier + Independent Driver: transition status
+loadRoutes.patch('/:id/status', checkRole(['broker', 'carrier', 'independent_driver']), LoadsController.transitionStatus);
 
 // Broker only: post load (draft → posted)
 loadRoutes.post('/:id/post', checkRole(['broker']), LoadsController.postLoad);
@@ -74,8 +74,8 @@ loadRoutes.post('/:id/booking-confirm', checkRole(['broker']), LoadsController.c
 // Broker only: deny booking
 loadRoutes.post('/:id/booking-deny', checkRole(['broker']), LoadsController.denyBooking);
 
-// Broker only: list booking requests
-loadRoutes.get('/:id/booking-requests', checkRole(['broker']), LoadsController.listBookingRequests);
+// Broker + Carrier + Independent Driver: list booking requests
+loadRoutes.get('/:id/booking-requests', checkRole(['broker', 'carrier', 'independent_driver']), LoadsController.listBookingRequests);
 
 // Carrier + Independent Driver (with loads.book): cancel own booking
 loadRoutes.put(

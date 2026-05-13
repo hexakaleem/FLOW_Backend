@@ -358,19 +358,27 @@ export class BookingService {
     return request;
   }
 
-  static async listBookingRequests(loadId: string, orgId: string): Promise<IBookingRequest[]> {
+  static async listBookingRequests(loadId: string, orgId: string, role?: string): Promise<IBookingRequest[]> {
     if (!Types.ObjectId.isValid(loadId)) {
       throw AppError.notFound('Load', loadId);
     }
-    const load = await LoadModel.findOne({
-      _id: new Types.ObjectId(loadId),
-      orgId: orgId,
-    });
 
+    const load = await LoadModel.findById(loadId);
     if (!load) {
       throw AppError.notFound('Load', loadId);
     }
 
+    // If broker, must be the owner
+    if (role === 'broker' && load.orgId.toString() !== orgId) {
+      throw AppError.forbidden('You do not have access to this load');
+    }
+
+    // If carrier/driver, they can only see their own requests for this load
+    if (role === 'carrier' || role === 'independent_driver') {
+      return BookingRequestModel.find({ loadId: loadId, carrierOrgId: orgId });
+    }
+
+    // Brokers see all requests for their load
     return BookingRequestModel.find({ loadId: loadId });
   }
 
