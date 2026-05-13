@@ -26,6 +26,13 @@ loadRoutes.get(
   LoadsController.getSummary,
 );
 
+// Broker only: list all pending booking requests
+loadRoutes.get(
+  '/booking-requests/pending',
+  checkRole(['broker']),
+  LoadsController.listAllBookingRequests,
+);
+
 // Load templates (broker only)
 loadRoutes.get('/templates', checkRole(['broker']), LoadsController.listTemplates);
 

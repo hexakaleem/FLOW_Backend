@@ -356,4 +356,22 @@ export class BookingService {
 
     return BookingRequestModel.find({ loadId: loadId });
   }
+
+  static async listAllBookingRequests(orgId: string): Promise<any[]> {
+    // 1. Get all load IDs for this organization
+    const loads = await LoadModel.find({ orgId: orgId }, { _id: 1, title: 1, origin: 1, destination: 1, status: 1 });
+    const loadIds = loads.map(l => l._id);
+
+    // 2. Get all pending booking requests for these loads
+    const requests = await BookingRequestModel.find({ 
+      loadId: { $in: loadIds },
+      status: 'pending'
+    }).sort({ createdAt: -1 }).lean();
+
+    // 3. Map load info back to requests
+    return requests.map(req => ({
+      ...req,
+      load: loads.find(l => l._id.toString() === req.loadId.toString())
+    }));
+  }
 }

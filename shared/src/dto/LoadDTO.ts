@@ -3,6 +3,8 @@ interface LoadAddress {
   city: string;
   state: string;
   zip: string;
+  lat?: number;
+  lng?: number;
   contactName: string;
   contactPhone: string;
 }

@@ -261,6 +261,20 @@ export class LoadsController {
   }
 
   // ---------------------------------------------------------------------------
+  // LIST ALL PENDING BOOKING REQUESTS (broker only)
+  // ---------------------------------------------------------------------------
+  static async listAllBookingRequests(req: Request, res: Response, next: NextFunction) {
+    try {
+      const companyId = req.auth!.companyId || '';
+      const requests = await BookingService.listAllBookingRequests(companyId);
+      const body: ApiResponse = { success: true, data: requests };
+      res.status(200).json(body);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // CANCEL BOOKING (carrier / independent driver cancels own pending booking)
   // ---------------------------------------------------------------------------
   static async cancelBooking(req: Request, res: Response, next: NextFunction) {
