@@ -118,6 +118,18 @@ export class UsersController {
     }
   }
 
+  static async cancelInvite(req: Request, res: Response, next: NextFunction) {
+    try {
+      const companyId = req.auth!.companyId || '';
+      const { inviteId } = req.params;
+      const result = await TeamService.cancelInvite(inviteId, companyId);
+      const body: ApiResponse = { success: true, data: result };
+      res.status(200).json(body);
+    } catch (err) {
+      next(err);
+    }
+  }
+
   static async createRole(req: Request, res: Response, next: NextFunction) {
     try {
       const companyId = req.auth!.companyId || '';

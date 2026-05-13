@@ -9,6 +9,7 @@ router.get('/members', authenticate, requirePermission('team:read'), forwardToMo
 router.post('/members', authenticate, requirePermission('team:invite'), forwardToMonolith);
 router.post('/invite', authenticate, requirePermission('team:invite'), forwardToMonolith);
 router.post('/accept-invite', forwardToMonolith);
+router.delete('/invites/:inviteId', authenticate, requirePermission('team:invite'), forwardToMonolith);
 router.patch(
   '/members/:memberId',
   authenticate,

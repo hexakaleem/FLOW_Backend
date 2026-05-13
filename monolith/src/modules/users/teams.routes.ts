@@ -8,6 +8,7 @@ teamRoutes.get('/members', UsersController.listMembers);
 teamRoutes.post('/members', UsersController.inviteMember);
 teamRoutes.post('/invite', UsersController.inviteMember);
 teamRoutes.post('/accept-invite', UsersController.acceptInvite);
+teamRoutes.delete('/invites/:inviteId', UsersController.cancelInvite);
 teamRoutes.get('/roles', UsersController.listRoles);
 teamRoutes.post('/roles', UsersController.createRole);
 teamRoutes.put('/roles/:roleId', UsersController.updateRole);

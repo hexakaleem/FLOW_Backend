@@ -43,8 +43,32 @@ export class TeamService {
 
     const memberships = await MembershipModel.find(query).sort({ joinedAt: -1 }).lean();
 
+    // Also fetch pending invites if there are no search/status filters that would exclude them
+    // (Or we can just apply the filters to invites as well)
+    const inviteQuery: Record<string, unknown> = { orgId, status: 'pending' };
+    if (filters?.search) {
+      inviteQuery.email = { $regex: filters.search, $options: 'i' };
+    }
+    if (filters?.role) {
+      const matchingRoles = await RoleModel.find({
+        orgId,
+        name: { $regex: filters.role, $options: 'i' },
+      }).select('_id');
+      inviteQuery.roleId = { $in: matchingRoles.map((r) => r._id.toString()) };
+    }
+
+    let pendingInvites: any[] = [];
+    if (!filters?.status || filters.status === 'pending') {
+      pendingInvites = await InviteModel.find(inviteQuery).sort({ createdAt: -1 }).lean();
+    }
+
     const userIds = memberships.map((m) => m.userId);
-    const roleIds = [...new Set(memberships.map((m) => m.roleId))];
+    const roleIds = [
+      ...new Set([
+        ...memberships.map((m) => m.roleId),
+        ...pendingInvites.map((i) => i.roleId)
+      ])
+    ];
 
     const [profiles, roles] = await Promise.all([
       ProfileModel.find({ userId: { $in: userIds } }).lean(),
@@ -54,7 +78,7 @@ export class TeamService {
     const profileMap = new Map(profiles.map((p) => [p.userId, p]));
     const roleMap = new Map(roles.map((r) => [r._id.toString(), r]));
 
-    return memberships.map((m) => ({
+    const activeMembers = memberships.map((m) => ({
       id: m._id.toString(),
       userId: m.userId,
       roleId: m.roleId,
@@ -63,6 +87,19 @@ export class TeamService {
       profile: profileMap.get(m.userId) ?? null,
       role: roleMap.get(m.roleId) ?? null,
     }));
+
+    const inviteMembers = pendingInvites.map((i) => ({
+      id: i._id.toString(),
+      userId: `invite_${i._id}`, // Pseudo userId for UI consistency
+      roleId: i.roleId,
+      status: 'pending',
+      joinedAt: i.createdAt,
+      profile: { email: i.email, firstName: 'Pending', lastName: 'Invite' },
+      role: roleMap.get(i.roleId) ?? null,
+      isInvite: true,
+    }));
+
+    return [...activeMembers, ...inviteMembers];
   }
 
   static async inviteMember(orgId: string, inviterId: string, email: string, roleId: string) {
@@ -159,6 +196,13 @@ export class TeamService {
     }
     const effectiveUserId = userId;
 
+    // VERY IMPORTANT: Prevent Inviter (or another logged-in user) from accidentally accepting 
+    // an invite meant for someone else if they test the link in the same browser.
+    const loggedInProfile = await ProfileModel.findOne({ userId: effectiveUserId });
+    if (loggedInProfile && loggedInProfile.email.toLowerCase() !== invite.email.toLowerCase()) {
+      throw AppError.forbidden('EMAIL_MISMATCH', `This invite is for ${invite.email}. Please log out to accept it.`);
+    }
+
     const existingMembership = await MembershipModel.findOne({
       userId: effectiveUserId,
       orgId: invite.orgId,
@@ -228,5 +272,19 @@ export class TeamService {
     PermissionService.invalidateCache(membership.userId);
 
     return membership;
+  }
+
+  static async cancelInvite(inviteId: string, orgId: string) {
+    const invite = await InviteModel.findOne({ _id: inviteId, orgId });
+    if (!invite) {
+      throw AppError.notFound('Invite', inviteId);
+    }
+    
+    if (invite.status !== 'pending') {
+      throw AppError.badRequest('INVALID_STATUS', 'Only pending invites can be cancelled');
+    }
+
+    await InviteModel.deleteOne({ _id: inviteId });
+    return { success: true };
   }
 }
